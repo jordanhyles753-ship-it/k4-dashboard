@@ -92,7 +92,7 @@ module.exports = async function handler(req, res) {
   // Diagnostic mode: show what K4 returns for the init steps
   if (debug === '1') {
     try {
-      const r1 = await fetch(`${K4_BASE}/`, {
+      const r1 = await fetch(`${K4_BASE}/admin`, {
         redirect: 'manual',
         headers: { Accept: 'text/html,application/xhtml+xml' },
       });
