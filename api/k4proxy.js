@@ -114,24 +114,35 @@ module.exports = async function handler(req, res) {
     </wt:beginLogInAllPublications1Request>
   </soapenv:Body>
 </soapenv:Envelope>`;
+      const commonHeaders = (cookies) => ({
+        'Content-Type': 'text/xml;charset=UTF-8',
+        'Origin': K4_ORIGIN,
+        'Referer': `${K4_BASE}/admin/`,
+        ...(cookies ? { Cookie: cookies } : {}),
+      });
+
+      // Call 1: no cookies → get fresh JSESSIONID
       const r2 = await fetch(`${K4_BASE}/services/UserBasic`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'text/xml;charset=UTF-8',
-          'SOAPAction': 'http://www.vjoon.com/k4/user/basic/beginLogInAllPublications1',
-          'Origin': K4_ORIGIN,
-          'Referer': `${K4_BASE}/admin/`,
-        },
+        headers: { ...commonHeaders(''), 'SOAPAction': 'http://www.vjoon.com/k4/user/basic/beginLogInAllPublications1' },
         body: beginBody,
       });
-      const loginCookies = extractCookies(r2.headers);
-      const loginBody = await r2.text();
+      const jsessionid = extractCookies(r2.headers);
+      const body2 = await r2.text();
+
+      // Call 2: retry with the JSESSIONID K4 just created
+      const r3 = await fetch(`${K4_BASE}/services/UserBasic`, {
+        method: 'POST',
+        headers: { ...commonHeaders(jsessionid), 'SOAPAction': 'http://www.vjoon.com/k4/user/basic/beginLogInAllPublications1' },
+        body: beginBody,
+      });
+      const body3 = await r3.text();
+      const cookies3 = extractCookies(r3.headers) || jsessionid;
+
       return res.status(200).json({
-        step1: { status: r1.status, location: loc, cookies: c1 },
-        loginStatus: r2.status,
-        loginCookies,
-        loginBodySnippet: loginBody.slice(0, 600),
-        hasUcid: loginBody.includes('useCaseInstanceID'),
+        call1: { status: r2.status, cookies: jsessionid, fault: body2.includes('Fault'), ucidMatch: body2.match(/useCaseInstanceID[^>]*>(-?\d+)/)?.[1] },
+        call2: { status: r3.status, cookies: cookies3, fault: body3.includes('Fault'), ucidMatch: body3.match(/useCaseInstanceID[^>]*>(-?\d+)/)?.[1] },
+        call2body: body3.slice(0, 400),
       });
     } catch (e) {
       return res.status(500).json({ error: e.message });
