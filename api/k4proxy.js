@@ -101,12 +101,37 @@ module.exports = async function handler(req, res) {
       const hdrs = {};
       r1.headers.forEach((v,k) => { hdrs[k] = v; });
       const body = await r1.text();
+      // Now test: beginLogIn with Origin+Referer spoofed to K4 domain
+      const beginBody = `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:wt="http://www.vjoon.com/ps/core/user/wstypes/">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <wt:beginLogInAllPublications1Request>
+      <wt:domain></wt:domain>
+      <wt:userName>${K4_USER}</wt:userName>
+      <wt:password>${K4_PASS}</wt:password>
+    </wt:beginLogInAllPublications1Request>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+      const r2 = await fetch(`${K4_BASE}/services/UserBasic`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/xml;charset=UTF-8',
+          'SOAPAction': 'http://www.vjoon.com/k4/user/basic/beginLogInAllPublications1',
+          'Origin': K4_ORIGIN,
+          'Referer': `${K4_BASE}/admin/`,
+        },
+        body: beginBody,
+      });
+      const loginCookies = extractCookies(r2.headers);
+      const loginBody = await r2.text();
       return res.status(200).json({
-        status: r1.status,
-        location: loc,
-        cookies: c1,
-        headers: hdrs,
-        bodySnippet: body.slice(0, 800),
+        step1: { status: r1.status, location: loc, cookies: c1 },
+        loginStatus: r2.status,
+        loginCookies,
+        loginBodySnippet: loginBody.slice(0, 600),
+        hasUcid: loginBody.includes('useCaseInstanceID'),
       });
     } catch (e) {
       return res.status(500).json({ error: e.message });
