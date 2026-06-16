@@ -92,12 +92,21 @@ module.exports = async function handler(req, res) {
   // Diagnostic mode: show what K4 returns for the init steps
   if (debug === '1') {
     try {
-      const s1 = await getSession();
-      let s2 = null;
-      if (s1.location) s2 = await getLoginFormAction(s1.location, s1.cookies);
+      const r1 = await fetch(`${K4_BASE}/`, {
+        redirect: 'manual',
+        headers: { Accept: 'text/html,application/xhtml+xml' },
+      });
+      const c1  = extractCookies(r1.headers);
+      const loc = r1.headers.get('location') || '';
+      const hdrs = {};
+      r1.headers.forEach((v,k) => { hdrs[k] = v; });
+      const body = await r1.text();
       return res.status(200).json({
-        step1: { status: s1.status, location: s1.location, cookies: s1.cookies },
-        step2: s2 ? { action: s2.action, cookies: s2.cookies, htmlSnippet: s2.html.slice(0, 500) } : null,
+        status: r1.status,
+        location: loc,
+        cookies: c1,
+        headers: hdrs,
+        bodySnippet: body.slice(0, 800),
       });
     } catch (e) {
       return res.status(500).json({ error: e.message });
