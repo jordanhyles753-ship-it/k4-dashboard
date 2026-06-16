@@ -32,11 +32,14 @@ module.exports = async function handler(req, res) {
     });
 
     const xml = await r.text();
+    console.log('K4 response status:', r.status, 'body prefix:', xml.slice(0, 300));
     res.setHeader('Content-Type', 'text/xml');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
-    res.status(r.status).send(xml);
+    // Always return 200 — SOAP faults arrive as HTTP 500 but contain valid XML
+    res.status(200).send(xml);
   } catch (e) {
+    console.error('K4 proxy error:', e.message);
     res.status(502).json({ error: `K4 upstream error: ${e.message}` });
   }
 };
