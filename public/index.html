@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>K4 Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f1117;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;font-size:13px}
+:root{--bg:#0f1117;--bg2:#1a1f2e;--bg3:#232a3d;--border:#2d3550;--accent:#4f8ef7;--green:#22c55e;--red:#ef4444;--yellow:#f59e0b;--purple:#a78bfa;--teal:#2dd4bf}
+.nav{display:flex;align-items:center;gap:4px;padding:10px 16px;background:#141824;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;flex-wrap:wrap}
+.nav h1{font-size:15px;font-weight:700;color:var(--accent);margin-right:8px;white-space:nowrap}
+.tab-btn{padding:6px 14px;border-radius:6px;border:none;background:transparent;color:#94a3b8;cursor:pointer;font-size:12px;font-weight:500;transition:all .15s}
+.tab-btn:hover{background:var(--bg3);color:#e2e8f0}
+.tab-btn.active{background:var(--accent);color:#fff}
+.badge{display:inline-block;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;vertical-align:middle}
+.badge.red{background:var(--red);color:#fff}
+.badge.yellow{background:var(--yellow);color:#000}
+.badge.green{background:var(--green);color:#000}
+.tab-panel{display:none;padding:16px}
+.tab-panel.active{display:block}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px}
+.card h3{font-size:12px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px}
+.stats{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.stat{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 18px;flex:1;min-width:120px}
+.stat .label{font-size:11px;color:#64748b;margin-bottom:4px}
+.stat .val{font-size:22px;font-weight:700;color:#e2e8f0}
+.stat .sub{font-size:11px;color:#64748b;margin-top:2px}
+.filters{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.filter-btn{padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:#94a3b8;cursor:pointer;font-size:11px}
+.filter-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(79,142,247,.1)}
+.search-box{padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:#e2e8f0;font-size:12px;width:200px;outline:none}
+.search-box:focus{border-color:var(--accent)}
+.tbl-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse}
+th{background:var(--bg3);color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase;padding:8px 10px;text-align:left;white-space:nowrap;cursor:pointer;user-select:none;position:sticky;top:0}
+th:hover{color:#e2e8f0}
+td{padding:7px 10px;border-top:1px solid var(--border);vertical-align:middle;white-space:nowrap}
+tr:hover td{background:var(--bg3)}
+.tbl-wrap.scrollable{max-height:520px;overflow-y:auto}
+.pill{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600}
+.pill.at{background:#1a3a2a;color:#86efac}
+.pill.ft{background:#14532d;color:#4ade80}
+.pill.ua{background:#4a1414;color:#f87171}
+.pill.default{background:#2d3550;color:#94a3b8}
+.wf-badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:600}
+.wf-text{background:#1e3a5f;color:#7dd3fc}
+.wf-img{background:#2d1a5f;color:#c4b5fd}
+.wf-other{background:#2d2d1a;color:#fcd34d}
+.active-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:5px;vertical-align:middle}
+.stalled-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--red);margin-right:5px;vertical-align:middle}
+.sev-high{color:var(--red)} .sev-med{color:var(--yellow)} .sev-low{color:var(--green)}
+.chart-box{position:relative;height:300px}
+.chart-box.tall{height:400px} .chart-box.short{height:220px} .chart-box.xtall{height:520px}
+.section-hdr{font-size:13px;font-weight:700;color:#e2e8f0;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.section-hdr span{font-size:11px;font-weight:400;color:#64748b}
+.net-bar{display:inline-block;height:8px;border-radius:4px;min-width:2px;vertical-align:middle;margin-right:6px}
+.undo-bar-wrap{display:flex;align-items:center;gap:6px}
+.undo-bar{height:6px;border-radius:3px;background:var(--red)}
+.pct-bar-wrap{width:100px;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:6px}
+.pct-bar{height:100%;border-radius:3px}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.load-btn{padding:7px 16px;border-radius:6px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-size:12px;font-weight:600}
+.load-btn:hover{background:#3a7de8}
+.load-btn:disabled{background:#2d3550;color:#64748b;cursor:default}
+.token-row{display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.token-input{padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:#e2e8f0;font-size:11px;font-family:monospace;outline:none}
+.token-input:focus{border-color:var(--accent)}
+.token-label{font-size:11px;color:#64748b;white-space:nowrap}
+.error-msg{color:var(--red);font-size:12px;padding:12px 16px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:6px;margin-bottom:12px}
+@media(max-width:700px){.grid2{grid-template-columns:1fr}.stats{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="nav">
+  <h1>📋 K4 Dashboard</h1>
+  <button class="tab-btn active" onclick="switchTab(0,this)">Products</button>
+  <button class="tab-btn" onclick="switchTab(1,this)">In Progress<span class="badge red" id="inprog-badge">–</span></button>
+  <button class="tab-btn" onclick="switchTab(2,this)">K4 Activity</button>
+  <button class="tab-btn" onclick="switchTab(3,this)">Bottlenecks<span class="badge yellow" id="bot-badge">–</span></button>
+  <button class="tab-btn" onclick="switchTab(4,this)">Team</button>
+  <button class="tab-btn" onclick="switchTab(5,this)">Asana + Kanban<span class="badge green">live</span></button>
+  <button class="tab-btn" onclick="switchTab(6,this)">Schedule<span class="badge yellow" id="sched-badge">–</span></button>
+  <button class="tab-btn" onclick="switchTab(7,this)">K4 Live<span class="badge green" id="k4live-badge" style="display:none"></span></button>
+  <span style="margin-left:auto;font-size:11px;color:#475569" id="gen-lbl"></span>
+</div>
+
+<!-- TAB 0: PRODUCTS -->
+<div class="tab-panel active" id="tab-0">
+  <div class="stats" id="prod-stats"></div>
+  <div class="filters">
+    <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+    <button class="filter-btn" onclick="setFilter('active',this)">Active</button>
+    <button class="filter-btn" onclick="setFilter('rework',this)">⚠️ Rework</button>
+    <button class="filter-btn" onclick="setFilter('hs',this)">High School</button>
+    <button class="filter-btn" onclick="setFilter('el',this)">Elementary</button>
+    <input class="search-box" type="text" placeholder="Search product…" oninput="onSearch(this.value)">
+  </div>
+  <div class="tbl-wrap scrollable">
+    <table>
+      <thead><tr>
+        <th onclick="srt('code')">Code</th>
+        <th onclick="srt('object_name')">Product</th>
+        <th>Workflow</th>
+        <th onclick="srt('last')">Last Event</th>
+        <th>User</th>
+        <th onclick="srt('versions')">Ver</th>
+        <th onclick="srt('events')">Events</th>
+        <th onclick="srt('finishes')">Finishes</th>
+        <th onclick="srt('undo_rate')">Undo%</th>
+        <th onclick="srt('avg_dur_sec')">Avg Dur</th>
+        <th onclick="srt('users')">Users</th>
+        <th id="asana-col-hdr" style="display:none">Asana%</th>
+        <th id="kb-col-hdr" style="display:none">Kanban</th>
+        <th>Top Steps</th>
+      </tr></thead>
+      <tbody id="prod-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TAB 1: IN PROGRESS -->
+<div class="tab-panel" id="tab-1">
+  <div class="stats" id="ip-stats"></div>
+  <div class="section-hdr">Currently Checked Out <span>Last event was ACCEPT with no subsequent FINISH or UNDO</span></div>
+  <div class="tbl-wrap">
+    <table><thead><tr><th>User</th><th>Product</th><th>Publication</th><th>Workflow</th><th>Step</th><th>Since</th><th>Days Open</th></tr></thead>
+    <tbody id="ip-tbody"></tbody></table>
+  </div>
+</div>
+
+<!-- TAB 2: ACTIVITY -->
+<div class="tab-panel" id="tab-2">
+  <div class="stats" id="act-stats"></div>
+  <div class="grid2" style="margin-bottom:16px">
+    <div class="card"><h3>Daily Finishes</h3><div class="chart-box"><canvas id="daily-chart"></canvas></div></div>
+    <div class="card"><h3>Finishes by Workflow</h3><div class="chart-box short"><canvas id="wf-chart"></canvas></div></div>
+  </div>
+  <div class="card"><h3>Top 25 Most Active Products</h3><div class="chart-box tall"><canvas id="top-prod-chart"></canvas></div></div>
+</div>
+
+<!-- TAB 3: BOTTLENECKS -->
+<div class="tab-panel" id="tab-3">
+  <div class="stats" id="bot-stats"></div>
+  <div class="grid2" style="margin-bottom:16px">
+    <div>
+      <div class="section-hdr">Step Bottlenecks <span>Net pending = accepts − finishes − undos</span></div>
+      <div class="tbl-wrap scrollable" style="max-height:440px">
+        <table><thead><tr><th>Step</th><th>Accepts</th><th>Finishes</th><th>Undos</th><th>Net Pending</th><th>Avg Duration</th></tr></thead>
+        <tbody id="bot-tbody"></tbody></table>
+      </div>
+    </div>
+    <div class="card"><h3>Top Steps by Net Pending</h3><div class="chart-box tall"><canvas id="bot-chart"></canvas></div></div>
+  </div>
+  <div class="section-hdr">Products by Undo Rate</div>
+  <div class="tbl-wrap">
+    <table><thead><tr><th>Product</th><th>Publication</th><th>Undo Rate</th><th>Undos</th><th>Finishes</th><th>Versions</th><th>Last</th></tr></thead>
+    <tbody id="undo-tbody"></tbody></table>
+  </div>
+</div>
+
+<!-- TAB 4: TEAM -->
+<div class="tab-panel" id="tab-4">
+  <div class="stats" id="team-stats"></div>
+  <div class="grid2">
+    <div class="card"><h3>Top 20 Users by Event Count</h3><div class="chart-box tall"><canvas id="user-chart"></canvas></div></div>
+    <div class="card"><h3>Top Steps by Average Duration</h3><div class="chart-box tall"><canvas id="dur-chart"></canvas></div></div>
+  </div>
+</div>
+
+<!-- TAB 6: SCHEDULE -->
+<div class="tab-panel" id="tab-6">
+  <div id="sched-loading" style="padding:40px;text-align:center;color:#64748b">Load Asana data (Asana + Kanban tab) to view schedule status.</div>
+  <div id="sched-content" style="display:none">
+    <div class="stats" id="sched-stats"></div>
+    <div class="grid2" style="margin-bottom:16px">
+      <div class="card"><h3>Schedule Status Distribution</h3><div class="chart-box short"><canvas id="sched-pie"></canvas></div></div>
+      <div class="card"><h3>Completion: Actual vs Expected</h3><div class="chart-box short"><canvas id="sched-scatter"></canvas></div></div>
+    </div>
+    <div class="filters">
+      <button class="filter-btn active" onclick="schedFilter('all',this)">All</button>
+      <button class="filter-btn" onclick="schedFilter('behind',this)">🔴 Behind</button>
+      <button class="filter-btn" onclick="schedFilter('ontrack',this)">🟡 On Track</button>
+      <button class="filter-btn" onclick="schedFilter('ahead',this)">🟢 Ahead</button>
+      <button class="filter-btn" onclick="schedFilter('complete',this)">✅ Complete</button>
+      <button class="filter-btn" onclick="schedFilter('nodate',this)">No Date</button>
+    </div>
+    <div class="tbl-wrap scrollable" style="margin-top:10px">
+      <table>
+        <thead><tr>
+          <th>Status</th>
+          <th onclick="srtSched('name')">Project</th>
+          <th onclick="srtSched('actualPct')">Actual%</th>
+          <th onclick="srtSched('expectedPct')">Expected%</th>
+          <th onclick="srtSched('delta')">Delta</th>
+          <th onclick="srtSched('overdue')">Overdue Tasks</th>
+          <th onclick="srtSched('currentStep')">Current Step</th>
+          <th onclick="srtSched('due_date')">Due Date</th>
+          <th onclick="srtSched('daysLeft')">Days Left</th>
+        </tr></thead>
+        <tbody id="sched-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 5: ASANA + KANBAN -->
+<div class="tab-panel" id="tab-5">
+  <div class="stats" id="live-stats">
+    <div class="stat"><div class="label">Status</div><div class="val" style="font-size:14px" id="live-status">Not loaded</div><div class="sub" id="live-age"></div></div>
+    <div class="stat"><div class="label">Asana Projects</div><div class="val" id="live-proj-count">–</div></div>
+    <div class="stat"><div class="label">Overall Completion</div><div class="val" id="live-overall-pct">–</div></div>
+    <div class="stat"><div class="label">Overdue Tasks</div><div class="val" style="color:var(--red)" id="live-overdue">–</div></div>
+    <div class="stat"><div class="label">Kanban Boards</div><div class="val" id="live-kb-count">–</div></div>
+  </div>
+  <div class="token-row">
+    <span class="token-label">Asana Token:</span>
+    <input class="token-input" id="asana-token-input" type="password" value="" placeholder="paste Asana token" style="width:340px">
+    <span class="token-label" style="margin-left:8px">Kanban Token:</span>
+    <input class="token-input" id="kanban-token-input" type="password" value="" placeholder="paste Kanban token" style="width:180px">
+    <button class="load-btn" id="load-live-btn" onclick="loadLiveData()">↻ Load Live Data</button>
+    <span id="live-spinner" style="display:none;color:#64748b;font-size:12px">Loading…</span>
+  </div>
+  <div id="live-error" style="display:none"></div>
+  <div id="live-content" style="display:none">
+    <div class="grid2" style="margin-bottom:16px">
+      <div class="card"><h3>Project Completion</h3><div class="chart-box xtall"><canvas id="asana-chart"></canvas></div></div>
+      <div>
+        <div class="section-hdr">Asana Projects <span id="asana-proj-subtitle"></span></div>
+        <div class="tbl-wrap scrollable" style="max-height:540px">
+          <table><thead><tr><th>Project</th><th>Done</th><th>Total</th><th>%</th><th>Current Step</th><th>Next Due</th><th>Overdue</th></tr></thead>
+          <tbody id="asana-tbody"></tbody></table>
+        </div>
+      </div>
+    </div>
+    <div class="section-hdr">K4 Products — Asana + Kanban Cross-reference</div>
+    <div class="tbl-wrap scrollable">
+      <table><thead><tr><th>Code</th><th>Product</th><th>Asana Project</th><th>Asana%</th><th>Asana Step</th><th>KB Last Activity</th><th>K4 Events</th><th>K4 Finishes</th></tr></thead>
+      <tbody id="cross-tbody"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 7: K4 LIVE -->
+<div class="tab-panel" id="tab-7">
+  <div class="stats" id="k4live-stats">
+    <div class="stat"><div class="label">Status</div><div class="val" style="font-size:14px" id="k4live-status">Not loaded</div><div class="sub" id="k4live-age"></div></div>
+    <div class="stat"><div class="label">HS Issues</div><div class="val" id="k4live-hs-count">–</div><div class="sub">Abeka High School</div></div>
+    <div class="stat"><div class="label">Elementary Issues</div><div class="val" id="k4live-el-count">–</div><div class="sub">ka Elementary School</div></div>
+    <div class="stat"><div class="label">Active (in PBI)</div><div class="val" style="color:var(--green)" id="k4live-active-count">–</div><div class="sub" id="k4live-pbi-range"></div></div>
+    <div class="stat"><div class="label">Inactive</div><div class="val" style="color:var(--yellow)" id="k4live-inactive-count">–</div><div class="sub">Not in PBI window</div></div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+    <button class="load-btn" id="k4live-btn" onclick="loadK4Issues()">↻ Refresh from K4</button>
+    <span id="k4live-spinner" style="display:none;color:#64748b;font-size:12px">Fetching…</span>
+    <span id="k4live-err" style="display:none;color:var(--red);font-size:12px"></span>
+  </div>
+  <div id="k4live-content" style="display:none">
+    <div class="filters" id="k4live-filters">
+      <button class="filter-btn active" onclick="k4liveFilter('all',this)">All</button>
+      <button class="filter-btn" onclick="k4liveFilter('active',this)">Active</button>
+      <button class="filter-btn" onclick="k4liveFilter('inactive',this)">Inactive</button>
+      <button class="filter-btn" onclick="k4liveFilter('hs',this)">High School</button>
+      <button class="filter-btn" onclick="k4liveFilter('el',this)">Elementary</button>
+      <input class="search-box" type="text" placeholder="Search…" oninput="k4liveSearch(this.value)" style="margin-left:8px">
+    </div>
+    <div class="tbl-wrap scrollable">
+      <table>
+        <thead><tr>
+          <th>Code</th>
+          <th>Issue Name</th>
+          <th>Publication</th>
+          <th>Asana Project</th>
+          <th>Activity</th>
+          <th style="text-align:right">Events</th>
+          <th style="text-align:right">Finishes</th>
+          <th style="text-align:right">Undo%</th>
+          <th>Workflow</th>
+          <th>Last Event</th>
+        </tr></thead>
+        <tbody id="k4live-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const D = {"generated":"2026-06-15T11:57:33.147230","source":"Power BI export (data (1).xlsx)","date_range":{"from":"2026-06-11","to":"2026-06-14"},"total_events":4286,"products":[{"code":"432423","object_name":"432423 c RC6 31-34 Layout TE","publication":"ka Elementary School","parent_name":"","events":615,"finishes":273,"undos":34,"undo_rate":11,"users":16,"versions":25,"last":"2026-06-13","workflow":"Text (Text-First)","last_user":"Hailey Gritton","active":["Nikki De Jong","Juliane Roberts","Hailey Gritton","Mike Wood","iscilla VanDenBerghe","Jordan Jones","Debbie Davis","Barbie Tupua","Thomas McKeen","Ruth Ann Chappell","Jenny Hemminger","Chris Yip","Marcella Decker","John Halbach","Amy Yohe","Lily Kielmeyer"],"avg_dur_sec":0,"top_tasks":[["Edit Metadata",88],["Ready for Pre-A R2",22],["Proofing Cxs Pre-A R2",22]],"is_stalled":false,"daily_fin":[["2026-06-11",123],["2026-06-12",55],["2026-06-13",95]]},{"code":"246182","object_name":"246182 WorldGeo Ch 21 Article TE","publication":"Abeka High School","parent_name":"","events":453,"finishes":206,"undos":15,"undo_rate":7,"users":14,"versions":94,"last":"2026-06-14","workflow":"Text (Pilot)","last_user":"Ashlee Oropeza","active":["Wes Turner","Mary See","John Halbach","Mike Wood","Lily Kielmeyer","Jeremy Bickelhaupt","Susan Schmuck","Thomas McKeen","Ashlee Oropeza","Jenny Hemminger","Chris Yip","Kimberly Harrington","Amy Yohe","Debbie Davis"],"avg_dur_sec":0,"top_tasks":[["Edit Metadata",52],["Layout Revisions 1",38],["In Pilot Layout Review",33]],"is_stalled":false,"daily_fin":[["2026-06-11",55],["2026-06-12",102],["2026-06-13",33],["2026-06-14",16]]},{"code":"440507","object_name":"440507 BD b FM Article TE","publication":"Abeka High School","parent_name":"","events":415,"finishes":193,"undos":12,"undo_rate":6,"users":16,"versions":91,"last":"2026-06-14","workflow":"Text (Text-First)","last_user":"Amy Yohe","active":["Renee Bryant","Lea Sulistyo","Mary See","Mike Wood","Tammy McLaughlin","Jordan Jones","Taylor Cartwright","Debbie Davis","Susan Schmuck","Stephanie Hansen","Jenny Hemminger","Chris Yip","Marcella Decker","John Halbach","Amy Yohe","Lily Kielmeyer"],"avg_dur_sec":0,"top_tasks":[["Edit Metadata",77],["In Proofing R1",49],["Editorial Committee Approval",30]],"is_stalled":false,"daily_fin":[["2026-06-11",78],["2026-06-12",104],["2026-06-13",10],["2026-06-14",1]]},{"code":"432571","object_name":"432571 SVP 6 11-20 LYT SE","publication":"ka Elementary School","parent_name":"","events":370,"finishes":171,"undos":11,"undo_rate":6,"users":15,"versions":63,"last":"2026-06-13","workflow":"Layout (Text-First)","last_user":"Daniel Becerra","active":["Nikki De Jong","Mary See","Ana Schriever","Mike Wood","Tammy McLaughlin","Jordan Jones","Debbie Davis","Barbie Tupua","Daniel Becerra","Jenny Hemminger","Chris Yip","Rachel Cuendet","John Halbach","Amy Yohe","Lily Kielmeyer"],"avg_dur_sec":0,"top_tasks":[["Edit Metadata",47],["Assigned Ed Resolve Pre-A R1",26],["In Proofing R1",25]],"is_stalled":false,"daily_fin":[["2026-06-11",93],["2026-06-12",50],["2026-06-13",28]]},{"code":"432237","object_name":"432237 Lang 6 L043b-050a Article Curr","publication":"ka Elementary School","parent_name":"","events":266,"finishes":128,"undos":7,"undo_rate":5,"users":10,"versions":167,"last":"2026-06-13","workflow":"Text (Pilot)","last_user":"Barbie Tupua","active":["Ashley Duong","Jennifer Odom","Juliane Roberts","Mike Wood","Kaylee Millard","Barbie Tupua","Karen Kisner","Leah Moak","Amy Yohe","Lily Kielmeyer"],"avg_dur_sec":0,"top_tasks":[["Product Mgr Rvw 2",70],["Assigned Ed Write Draft",56],["Edit Metadata",29]],"is_stalled":false,"daily_fin":[["2026-06-11",61],["2026-06-12",56],["2026-06-13",11]]},{"code":"432687","object_name":"432687 Arith 6 B L002 Article SE (PILOT)","publication":"ka Elementary School","parent_name":"","events":202,"finishes":82,"undos":19,"undo_rate":19,"users":8,"versions":9,"last":"2026-06-12","workflow":"Layout (Pilot)","last_user":"Micah Gorman","active":["Scott Dunn","Micah Gorman","ssica Garcia Eatough","Susan Schmuck","Jordan Lynch","Wendy Groff","Abby Tharp","Diane Musson"],"avg_dur_sec":0,"top_tasks":[["Product Mgr Draft Rvw",92],["Assigned Ed Write Draft",42],["Create InCopy Articles",24]],"is_stalled":false,"daily_fin":[["2026-06-11",59],["2026-06-12",23]]},{"code":"439436","object_name":"439436 HMSCHL Algebra 2 App B Article VM","publication":"Abeka High School","parent_name":"","events":157,"finishes":69,"undos":11,"undo_rate":14,"users":12,"versions":120,"last":"2026-06-12","workflow":"Layout (Text-First)","last_user":"Karen Kisner","active":["Missy Hendrickson","Monica Percival","Mike Wood","Jen Weeks","Andrea McDonald","Jordan Jones","Susan Schmuck","Karen Kisner","Stephanie Hansen","John Halbach","Amy Yohe","Lily Kielmeyer"],"avg_dur_sec":0,"top_tasks":[["Edit Metadata",26],["Assigned Ed Rvw",14],["Assigned Ed Write Draft",14]],"is_stalled":false,"daily_fin":[["2026-06-11",43],["2026-06-12",26]]},{"code":"438065","object_name":"438065 CVS V Comp Supplement SE","publication":"Abeka High School","parent_name":"","events":129,"finishes":60,"undos":4,"undo_rate":6,"users":5,"versions":156,"last":"2026-06-14","workflow":"Text (Text-First)","last_user":"Amy Yohe","active":["Hannah Antich","Ruth Ann Chappell","Kimberly Harrington","Amy Yohe","Alyssa Brainard"],"avg_dur_sec":0,"top_tasks":[["Perm/Credits Rvw 1",27],["In Pilot Layout Review",20],["Editorial Rounds 1,Perm/Credits Rvw 1",16]],"is_stalled":false,"daily_fin":[["2026-06-11",35],["2026-06-12",25]]},{"code":"436348","object_name":"436348 PFL b CH6 Layout TE","publication":"Abeka High School","parent_name":"","events":125,"finishes":48,"undos":14,"undo_rate":23,"users":2,"versions":216,"last":"2026-06-12","workflow":"Layout (Pilot)","last_user":"Hannah Barreto","active":["Thad Lund","Hannah Barreto"],"avg_dur_sec":0,"top_tasks":[["Layout Revisions Apogee",63],["In Apogee Proof",62]],"is_stalled":false,"daily_fin":[["2026-06-11",34],["2026-06-12",14]]},{"code":"438936","object_name":"438936 SpanC L16-20 Article PE","publication":"ka Elementary School","parent_name":"","events":124,"finishes":59,"undos":3,"undo_rate":5,"users":10,"versions":0,"last":"2026-06-13","workflow":"","last_user":"Amy Yohe","active":["Hailey Gritton","Mike Wood","Susan Schmuck","Barbie Tupua","Ruth Ann Chappell","Rachel Cuendet","Marcella Decker","John Halbach","Amy Yohe","Angel Whitley"],"avg_dur_sec":0,"top_tasks":[["Edit Metadata",26],["Product Mgr Draft Rvw",14],["In Layout Review",9]],"is_stalled":false,"daily_fin":[["2026-06-11",37],["2026-06-12",20],["2026-06-13",2]]},{"code":"440809","object_name":"440809 HMSCHL Spanish C FM Article VM","publication":"ka Elementary School","parent_name":"","events":119,"finishes":57,"undos":2,"undo_rate":3,"users":9,"versions":8,"last":"2026-06-12","workflow":"","last_user":"Andrea McDonald","active":["Mike Wood","Jen Weeks","Andrea McDonald","Karen Kisner","Chris Yip","Marcella Decker","John Halbach","Amy Yohe","Lily Kielmeyer"],"avg_dur_sec":0,"top_tasks":[["Editorial Committee Approval",34],["Layout Revisions",17],["Assigned Ed Resolve",15]],"is_stalled":false,"daily_fin":[["2026-06-11",38],["2026-06-12",19]]},{"code":"439401","object_name":"439401 HMSCHL English 9 L 151-170 Article VM","publication":"Abeka High School","parent_name":"","events":115,"finishes":46,"undos":13,"undo_rate":22,"users":11,"versions":117,"last":"2026-06-12","workflow":"Layout (Text-First)","last_user":"Karen Kisner","active":["Nikki De Jong","Mike Wood","Jen Weeks","Andrea McDonald","Jordan Jones","Lily Kielmeyer","Karen Kisner","Chris Yip","John Halbach","Amy Yohe","Debbie Davis"],"avg_dur_sec":0,"top_tasks":[["Edit Metadata",12],["Proofer/Copy Edit Pre-A R1",12],["Assigned Ed Rvw 2",9]],"is_stalled":false,"daily_fin":[["2026-06-11",42],["2026-06-12",4]]},{"code":"432253","object_name":"432253 Arith 6 L002 Curr Article (PILOT)","publication":"ka Elementary School","parent_name":"","events":106,"finishes":21,"undos":32,"undo_rate":60,"users":2,"versions":7,"last":"2026-06-12","workflow":"","last_user":"Jordan Lynch","active":["Jordan Lynch","Rachel Taylor"],"avg_dur_sec":0,"top_tasks":[["Product Mgr Draft Rvw",60],["Assigned Ed Write Draft",22],["Edit Metadata",20]],"is_stalled":false,"daily_fin":[["2026-06-11",20],["2026-06-12",1]]},{"code":"290319","object_name":"290319 Geom z Objects Layout SE\u2022","publication":"Abeka High School","parent_name":"","events":88,"finishes":40,"undos":4,"undo_rate":9,"users":2,"versions":112,"last":"2026-06-12","workflow":"Layout (Pilot)","last_user":"Rob McLaughlin","active":["Monica Percival","Rob McLaughlin"],"avg_dur_sec":0,"top_tasks":[["Create InCopy Articles",52],["Hold for Pilot Feedback",18],["Design Supervisor Rvw",10]],"is_stalled":false,"daily_fin":[["2026-06-11",11],["2026-06-12",29]]},{"code":"246239","object_name":"246239 WorldGeo PR8-9 Layout MS","publication":"Abeka High School","parent_name":"","events":74,"finishes":20,"undos":17,"undo_rate":46,"users":3,"versions":116,"last":"2026-06-12","workflow":"Layout (Pilot)","last_user":"Wes Turner","active":["Thad Lund","Wes Turner","Thomas McKeen"],"avg_dur_sec":0,"top_tasks":[["In Apogee Proof",68],["Layout Revisions Apogee",6]],"is_stalled":false,"daily_fin":[["2026-06-11",9],["2026-06-12",11]]},{"code":"440825","object_name":"440825 HMSCHL PFL L 001-30 Article VM","publication":"Abeka High School","parent_name":"","events":72,"finishes":35,"undos":1,"undo_rate":3,"users":6,"versions":89,"last":"2026-06-12","workflow":"Text (Text-First)","last_user":"Andrea McDonald","active":["Jen Weeks","Andrea McDonald","Karen Kisner","Marcella Decker","John Halbach","Amy Yohe"],"avg_dur_sec":0,"top_tasks":[["Editorial Committee Approval",24],["Assigned Ed Resolve",12],["Product Mgr Draft Approval",10]],"is_stalled":false,"daily_fin":[["2026-06-11",5],["2026-06-12",30]]},{"code":"439495","object_name":"439495 HMSCHL Physics L 1-170 Layout VM","publication":"Abeka High School","parent_name":"","events":68,"finishes":29,"undos":5,"undo_rate":15,"users":2,"versions":129,"last":"2026-06-12","workflow":"Text (Text-First)","last_user":"Karen Kisner","active":["Thad Lund","Karen Kisner"],"avg_dur_sec":0,"top_tasks":[["Layout Revisions Apogee",22],["In Apogee Proof",20],["Edit Metadata",13]],"is_stalled":false,"daily_fin":[["2026-06-11",16],["2026-06-12",13]]},{"code":"433586","object_name":"433586 CGH CH04.1 Article SE PILOT","publication":"ka Elementary School","parent_name":"","events":51,"finishes":23,"undos":3,"undo_rate":12,"users":3,"versions":7,"last":"2026-06-12","workflow":"Text (Pilot)","last_user":"Jeremy Foster","active":["Jeremy Foster","Tiffany Middlebrooke","Amy Yohe"],"avg_dur_sec":0,"top_tasks":[["Assigned Ed Update Draft",47],["Edit Metadata",4]],"is_stalled":false,"daily_fin":[["2026-06-11",15],["2026-06-12",8]]},{"code":"439479","object_name":"439479 HMSCHL Bible Doctrines APP A-2 Article VM","publication":"Abeka High School","parent_name":"","events":50,"finishes":23,"undos":2,"undo_rate":8,"users":6,"versions":61,"last":"2026-06-12","workflow":"Text (Text-First)","last_user":"Andrea McDonald","active":["Jen Weeks","Jordan Jones","Andrea McDonald","Karen Kisner","Chris Yip","Amy Yohe"],"avg_dur_sec":0,"top_tasks":[["Fact Check Draft Rvw",10],["Assigned Ed Write Draft",6],["Managing Ed Rvw 2",5]],"is_stalled":false,"daily_fin":[["2026-06-11",4],["2026-06-12",19]]},{"code":"438014","object_name":"438014 GramV U5 Article SE","publication":"Abeka High School","parent_name":"","events":48,"finishes":21,"undos":3,"undo_rate":12,"users":4,"versions":88,"last":"2026-06-14","workflow":"Text (Pilot)","last_user":"Kimberly Harrington","active":["Ruth Ann Chappell","Kimberly Harrington","Amy Yohe","Susan Schmuck"],"avg_dur_sec":0,"top_tasks":[["Perm/Credits Rvw 1",13],["Edit Metadata",10],["Perm/Credits Rvw 1,Product Mgr Rvw 1",10]],"is_stalled":false,"daily_fin":[["2026-06-11",14],["2026-06-12",5],["2026-06-13",1],["2026-06-14",1]]},{"code":"440817","object_name":"440817 HMSHCL World Geography App B Article VM","publication":"Abeka High School","parent_name":"","events":46,"finishes":18,"undos":5,"undo_rate":22,"users":7,"versions":85,"last":"2026-06-12","workflow":"Text (Text-First)","last_user":"Andrea McDonald","active":["Jen Weeks","Andrea McDonald","Karen Kisner","Stephanie Hansen","Marcella Decker","John Halbach","Amy Yohe"],"avg_dur_sec":0,"top_tasks":[["Product Mgr Resolve",6],["Assigned Ed Resolve",6],["Proofer 2 Rvw 1",4]],"is_stalled":false,"daily_fin":[["2026-06-11",14],["2026-06-12",4]]},{"code":"432407","object_name":"432407 RC6 SS 26-30 Layout SE","publication":"ka Elementary School","parent_name":"","events":42,"finishes":15,"undos":6,"undo_rate":29,"users":2,"versions":32,"last":"2026-06-13","workflow":"Layout (Text-First)","last_user":"Hailey Gritton","active":["Thad Lund","Hailey Gritton"],"avg_dur_sec":0,"top_tasks":[["Ready for Print",42]],"is_stalled":false,"daily_fin":[["2026-06-11",4],["2026-06-12",7],["2026-06-13",4]]},{"code":"435163","object_name":"435163 AmerLit U4 Article SE","publication":"Abeka High School","parent_name":"","events":35,"finishes":15,"undos":2,"undo_rate":12,"users":4,"versions":343,"last":"2026-06-14","workflow":"Text (Pilot)","last_user":"Kimberly Harrington","active":["Norian Brown","Kimberly Harrington","Ruth Ann Chappell","Carole DeBruler"],"avg_dur_sec":0,"top_tasks":[["Editorial Rounds 2",13],["In Pilot Round",6],["Assigned Ed Update Draft",6]],"is_stalled":false,"daily_fin":[["2026-06-11",9],["2026-06-12",4],["2026-06-13",1],["2026-06-14",1]]},{"code":"438081","object_name":"438081 CVSV Comp U1 Layout TE","publication":"Abeka High School","parent_name":"","events":35,"finishes":14,"undos":3,"undo_rate":18,"users":4,"versions":56,"last":"2026-06-12","workflow":"Text (Pilot)","last_user":"Alyssa Brainard","active":["Ruth Ann Chappell","Kimberly Harrington","Alyssa Brainard","Hannah Antich"],"avg_dur_sec":0,"top_tasks":[["Place InCopy Articles",17],["Assigned Ed Update Draft",6],["Assigned Ed Write Draft",4]],"is_stalled":false,"daily_fin":[["2026-06-11",4],["2026-06-12",10]]},{"code":"438103","object_name":"438103 CVS V Comp U1 Article Q","publication":"Abeka High School","parent_name":"","events":33,"finishes":16,"undos":0,"undo_rate":0,"users":3,"versions":21,"last":"2026-06-12","workflow":"","last_user":"Hannah Antich","active":["Kimberly Harrington","Ruth Ann Chappell","Hannah Antich"],"avg_dur_sec":0,"top_tasks":[["Assigned Ed Resolve Draft",20],["Assigned Ed Write Draft",8],["Place InCopy Articles",2]],"is_stalled":false,"daily_fin":[["2026-06-11",2],["2026-06-12",14]]},{"code":"435201","object_name":"435201 AmLit Q1 T1 Article QT","publication":"Abeka High School","parent_name":"","events":32,"finishes":12,"undos":3,"undo_rate":20,"users":2,"versions":41,"last":"2026-06-14","workflow":"Text (Pilot)","last_user":"Kimberly Harrington","active":["Kimberly Harrington","Carole DeBruler"],"avg_dur_sec":0,"top_tasks":[["Assigned Ed Resolve Draft",22],["Perm/Credits Rvw 1",4],["Assigned Ed Rvw 1,Perm/Credits Rvw 1",3]],"is_stalled":false,"daily_fin":[["2026-06-11",9],["2026-06-13",2],["2026-06-14",1]]},{"code":"435271","object_name":"435271 SVP 6 1-5 Article SE","publication":"ka Elementary School","parent_name":"","events":30,"finishes":15,"undos":0,"undo_rate":0,"users":5,"versions":109,"last":"2026-06-13","workflow":"Text (Text-First)","last_user":"Ana Schriever","active":["Ana Schriever","Barbie Tupua","Daniel Becerra","Jenny Hemminger","Amy Yohe"],"avg_dur_sec":0,"top_tasks":[["Ready for Pre-A R2",8],["Assigned Ed Pre-A R1",4],["Assigned Ed Resolve Pre-A R1",4]],"is_stalled":false,"daily_fin":[["2026-06-11",2],["2026-06-12",4],["2026-06-13",9]]},{"code":"440485","object_name":"440485 BD Journal Dig Download Layout SE","publication":"Abeka High School","parent_name":"","events":27,"finishes":6,"undos":7,"undo_rate":54,"users":1,"versions":0,"last":"2026-06-12","workflow":"","last_user":"Tammy McLaughlin","active":["Tammy McLaughlin"],"avg_dur_sec":0,"top_tasks":[["Edit Metadata",17],["Create InCopy Articles",8],["Assigned Ed Write Draft",2]],"is_stalled":false,"daily_fin":[["2026-06-12",6]]},{"code":"439347","object_name":"439347 HMSCHL World History 7 FM Layout VM","publication":"Abeka High School","parent_name":"","events":26,"finishes":13,"undos":0,"undo_rate":0,"users":1,"versions":138,"last":"2026-06-12","workflow":"Text (Text-First)","last_user":"Karen Kisner","active":["Karen Kisner"],"avg_dur_sec":0,"top_tasks":[["Edit Metadata",13],["Edit Metadata,Layout Revisions Apogee",9],["Edit Metadata,In Apogee Proof",4]],"is_stalled":false,"daily_fin":[["2026-06-12",13]]},{"code":"435465","object_name":"435465 TSL a Intro Article SE","publication":"Abeka High School","parent_name":"","events":24,"finishes":8,"undos":4,"undo_rate":33,"users":2,"versions":19,"last":"2026-06-12","workflow":"Text (Pilot)","last_user":"Carole DeBruler","active":["Norian Brown","Carole DeBruler"],"avg_dur_sec":0,"top_tasks":[["Assigned Ed Write Draft",24]],"is_stalled":false,"daily_fin":[["2026-06-11",6],["2026-06-12",2]]},{"code":"433594","object_name":"433594 CGH CH 04 Article TE PILOT","publication":"ka Elementary School","parent_name":"","events":24,"finishes":10,"undos":2,"undo_rate":17,"users":2,"versions":5,"last":"2026-06-12","workflow":"Text (Pilot)","last_user":"Jeremy Foster","active":["Jeremy Foster","Tiffany Middlebrooke"],"avg_dur_sec":0,"top_tasks":[["Assigned Ed Write Draft",24]],"is_stalled":false,"daily_fin":[["2026-06-11",4],["2026-06-12",6]]},{"code":"432377","object_name":"432377 OAPP J Article TE","publication":"ka Elementary School","parent_name":"","events":24,"finishes":10,"undos":2,"undo_rate":17,"users":2,"versions":32,"last":"2026-06-13","workflow":"","last_user":"Juliane Roberts","active":["Jennifer Odom","Juliane Roberts"],"avg_dur_sec":0,"top_tasks":[["Product Mgr Draft Rvw",8],["Assigned Ed Write Draft",4],["Product Mgr Rvw 2",4]],"is_stalled":false,"daily_fin":[["2026-06-11",1],["2026-06-12",3],["2026-06-13",6]]},{"code":"436372","object_name":"436372 b PFL CH6-9 Article AK","publication":"Abeka High School","parent_name":"","events":24,"finishes":8,"undos":4,"undo_rate":33,"users":3,"versions":29,"last":"2026-06-12","workflow":"Text (Text-First)","last_user":"Monica Percival","active":["Monica Percival","Hannah Barreto","Amy Yohe"],"avg_dur_sec":0,"top_tasks":[["Create InCopy Articles",4],["Proofer Draft Rvw",4],["Assigned Ed Resolve ME Rvw",3]],"is_stalled":false,"daily_fin":[["2026-06-11",3],["2026-06-12",5]]},{"code":"433462","object_name":"433462 OGW CH03.4 Article SE PILOT","publication":"ka Elementary School","parent_name":"","events":22,"finishes":9,"undos":2,"undo_rate":18,"users":2,"versions":0,"last":"2026-06-12","workflow":"","last_user":"Tiffany Middlebrooke","active":["Tiffany Middlebrooke","Elizabeth Betonio"],"avg_dur_sec":0,"top_tasks":[["Fact Check Draft Rvw",8],["Assigned Ed Update Draft",8],["Assigned Ed Write Draft",6]],"is_stalled":false,"daily_fin":[["2026-06-11",1],["2026-06-12",8]]},{"code":"438022","object_name":"438022 GramV U3 Article TE","publication":"Abeka High School","parent_name":"","events":21,"finishes":7,"undos":1,"undo_rate":12,"users":2,"versions":29,"last":"2026-06-12","workflow":"Text (Pilot)","last_user":"Kimberly Harrington","active":["Kimberly Harrington","John Halbach"],"avg_dur_sec":0,"top_tasks":[["Perm/Credits Rvw 1",8],["Place InCopy Articles",4],["Assigned Ed Rvw 1,Perm/Credits Rvw 1",2]],"is_stalled":false,"daily_fin":[["2026-06-11",3],["2026-06-12",4]]},{"code":"432598","object_name":"432598 SVP 6 FM Layout TE","publication":"ka Elementary School","parent_name":"","events":18,"finishes":7,"undos":2,"undo_rate":22,"users":4,"versions":58,"last":"2026-06-13","workflow":"","last_user":"Thomas McKeen","active":["Leah Moak","Thomas McKeen","Barbie Tupua","Ana Schriever"],"avg_dur_sec":0,"top_tasks":[["Assigned Ed Update Draft",8],["Fact Check Draft Rvw",4],["Assigned Ed Write Draft",2]],"is_stalled":false,"daily_fin":[["2026-06-11",4],["2026-06-12",3]]},{"code":"339393","object_name":"339393 c CanNbk 69-82 WOL Layout","publication":"ka Elementary School","parent_name":"","events":18,"finishes":9,"undos":0,"undo_rate":0,"users":1,"versions":2,"last":"2026-06-12","workflow":"Layout (Text-First)","last_user":"Todd Hatchett","active":["Todd Hatchett"],"avg_dur_sec":0,"top_tasks":[["Create InCopy Articles",10],["Assigned Ed Write Draft",8]],"is_stalled":false,"daily_fin":[["2026-06-11",1],["2026-06-12",8]]},{"code":"435171","object_name":"435171 AL U3 Article TE V1","publication":"Abeka High School","parent_name":"","events":16,"finishes":7,"undos":1,"undo_rate":12,"users":3,"versions":107,"last":"2026-06-13","workflow":"Text (Pilot)","last_user":"Kimberly Harrington","active":["Mary See","Norian Brown","Kimberly Harrington"],"avg_dur_sec":0,"top_tasks":[["Editor Draft Revise",12],["Proofer Draft Rvw",2],["Editor Draft Revise,Product Mgr Draft Rvw 3",2]],"is_stalled":false,"daily_fin":[["2026-06-11",5],["2026-06-12",1],["2026-06-13",1]]},{"code":"432717","object_name":"432717 Arith 6 QT03 Ls 021-030 Article QT","publication":"ka Elementary School","parent_name":"","events":14,"finishes":7,"undos":0,"undo_rate":0,"users":5,"versions":0,"last":"2026-06-12","workflow":"","last_user":"Rachel Taylor","active":["Abby Tharp","Rachel Taylor","Wendy Groff","ssica Garcia Eatough","Diane Musson"],"avg_dur_sec":0,"top_tasks":[["Assigned Ed Write Draft",14]],"is_stalled":false,"daily_fin":[["2026-06-11",4],["2026-06-12",3]]},{"code":"246166","object_name":"246166 WorldGeo CH 18 Layout SE","publication":"Abeka High School","parent_name":"","events":14,"finishes":1,"undos":6,"undo_rate":86,"users":2,"versions":84,"last":"2026-06-12","workflow":"Layout (Pilot)","last_user":"Wes Turner","active":["Wes Turner","Susan Schmuck"],"avg_dur_sec":0,"top_tasks":[["In Apogee Proof",8],["Layout Revisions Apogee",4],["Production Mgr Request Apogee Proof",2]],"is_stalled":false,"daily_fin":[["2026-06-12",1]]},{"code":"428523","object_name":"428523 Geometry CH09 9.5 Article SK","publication":"Abeka High School","parent_name":"","events":12,"finishes":6,"undos":0,"undo_rate":0,"users":1,"versions":1,"last":"2026-06-11","workflow":"Text (Text-First)","last_user":"Missy Hendrickson","active":["Missy Hendrickson"],"avg_dur_sec":0,"top_tasks":[["Edit Metadata",12]],"is_stalled":false,"daily_fin":[["2026-06-11",6]]},{"code":"438898","object_name":"438898 SpanC FM A Article TE","publication":"ka Elementary School","parent_name":"","events":11,"finishes":1,"undos":2,"undo_rate":67,"users":1,"versions":40,"last":"2026-06-12","workflow":"Text (Pilot)","last_user":"Susan Schmuck","active":["Susan Schmuck"],"avg_dur_sec":0,"top_tasks":[["Layout Revisions Apogee,Ready for Print",5],["Layout Revisions Apogee",4],["Edit Metadata",1]],"is_stalled":false,"daily_fin":[["2026-06-12",1]]},{"code":"440515","object_name":"440515 BD Q1 Article QT","publication":"Abeka High School","parent_name":"","events":10,"finishes":5,"undos":0,"undo_rate":0,"users":3,"versions":13,"last":"2026-06-14","workflow":"Text (Text-First)","last_user":"Amy Yohe","active":["Stephanie Hansen","Renee Bryant","Amy Yohe"],"avg_dur_sec":0,"top_tasks":[["Assigned Ed Update Draft",5],["Assigned Ed Write Draft",2],["Assigned Ed Update Draft,Product Mgr Draft Rvw",1]],"is_stalled":false,"daily_fin":[["2026-06-11",1],["2026-06-12",1],["2026-06-13",2],["2026-06-14",1]]},{"code":"438111","object_name":"438111 CVS V SpVoc U1 Q1 Article Q","publication":"Abeka High School","parent_name":"","events":8,"finishes":1,"undos":2,"undo_rate":67,"users":3,"versions":40,"last":"2026-06-12","workflow":"Text (Text-First)","last_user":"Alyssa Brainard","active":["Kimberly Harrington","Ruth Ann Chappell","Alyssa Brainard"],"avg_dur_sec":0,"top_tasks":[["Assigned Ed Write Draft",6],["Edit Metadata",1],["Assigned Ed Write Draft,Fact Check Draft Rvw,Assigned Ed Update Draft,Preliminary Layout,Product Mgr Draft Rvw,Managing Ed Draft Rvw,Product Mgr Draft Rvw 2,Assigned Ed Resolve ME Rvw,Proofer Draft Rvw,Editor Draft Revise,Product Mgr Draft Rvw 3,Assigned Ed Resolve Draft,Product Mgr Draft Approval,Production Mgr Rvw,Place InCopy Articles,Designer Release 1,Assigned Ed Rvw 1",1]],"is_stalled":false,"daily_fin":[["2026-06-12",1]]},{"code":"432695","object_name":"432695 Arith 6 C Ls030-038 Article TE (PILOT)","publication":"ka Elementary School","parent_name":"","events":8,"finishes":4,"undos":0,"undo_rate":0,"users":2,"versions":5,"last":"2026-06-12","workflow":"","last_user":"Micah Gorman","active":["Micah Gorman","Wendy Groff"],"avg_dur_sec":0,"top_tasks":[["Create InCopy Articles",2],["Product Mgr Draft Rvw",2],["Edit Metadata",2]],"is_stalled":false,"daily_fin":[["2026-06-12",4]]},{"code":"432334","object_name":"432334 JOTB G Article SE","publication":"ka Elementary School","parent_name":"","events":6,"finishes":2,"undos":1,"undo_rate":33,"users":2,"versions":43,"last":"2026-06-12","workflow":"Text (Text-First)","last_user":"Barbie Tupua","active":["Barbie Tupua","iscilla VanDenBerghe"],"avg_dur_sec":0,"top_tasks":[["Assigned Ed Write Draft",4],["Edit Metadata",2]],"is_stalled":false,"daily_fin":[["2026-06-11",2]]},{"code":"246204","object_name":"246204 WorldGeo Test 3 Layout QT","publication":"Abeka High School","parent_name":"","events":6,"finishes":2,"undos":1,"undo_rate":33,"users":2,"versions":90,"last":"2026-06-11","workflow":"Layout (Pilot)","last_user":"Hannah Barreto","active":["Thad Lund","Hannah Barreto"],"avg_dur_sec":0,"top_tasks":[["In Apogee Proof",4],["Layout Revisions Apogee",2]],"is_stalled":false,"daily_fin":[["2026-06-11",2]]},{"code":"432601","object_name":"432601 SVP 6 27-34 Article T","publication":"ka Elementary School","parent_name":"","events":6,"finishes":3,"undos":0,"undo_rate":0,"users":2,"versions":1,"last":"2026-06-12","workflow":"Text (Text-First)","last_user":"Ana Schriever","active":["Rachel Cuendet","Ana Schriever"],"avg_dur_sec":0,"top_tasks":[["Assigned Ed Update Draft",4],["Assigned Ed Resolve ME Review",2]],"is_stalled":false,"daily_fin":[["2026-06-12",3]]},{"code":"439452","object_name":"439452 School World History 7 FM Article VM","publication":"Abeka High School","parent_name":"","events":6,"finishes":3,"undos":0,"undo_rate":0,"users":2,"versions":1,"last":"2026-06-12","workflow":"Text (Text-First)","last_user":"Andrea McDonald","active":["Jen Weeks","Andrea McDonald"],"avg_dur_sec":0,"top_tasks":[["Assigned Ed Write Draft",4],["Edit Metadata",2]],"is_stalled":false,"daily_fin":[["2026-06-12",3]]},{"code":"433624","object_name":"433624 CGH CH03 WKST10 Article AB PILOT","publication":"ka Elementary School","parent_name":"","events":4,"finishes":2,"undos":0,"undo_rate":0,"users":1,"versions":2,"last":"2026-06-12","workflow":"Text (Pilot)","last_user":"Tiffany Middlebrooke","active":["Tiffany Middlebrooke"],"avg_dur_sec":0,"top_tasks":[["Assigned Ed Update Draft",4]],"is_stalled":false,"daily_fin":[["2026-06-11",1],["2026-06-12",1]]},{"code":"432474","object_name":"432474 b GG Lang 6 L021-030 Layout SE","publication":"ka Elementary School","parent_name":"","events":4,"finishes":0,"undos":2,"undo_rate":100,"users":1,"versions":118,"last":"2026-06-12","workflow":"Layout (Pilot)","last_user":"Tammy McLaughlin","active":["Tammy McLaughlin"],"avg_dur_sec":0,"top_tasks":[["Edit Metadata",4]],"is_stalled":false,"daily_fin":[]},{"code":"439509","object_name":"439509 School Physics FM Article VM","publication":"Abeka High School","parent_name":"","events":4,"finishes":2,"undos":0,"undo_rate":0,"users":2,"versions":2,"last":"2026-06-12","workflow":"Text (Text-First)","last_user":"Andrea McDonald","active":["Jen Weeks","Andrea McDonald"],"avg_dur_sec":0,"top_tasks":[["Assigned Ed Write Draft",4]],"is_stalled":false,"daily_fin":[["2026-06-12",2]]},{"code":"441382","object_name":"441382 TSL a Intro Article TE","publication":"Abeka High School","parent_name":"","events":2,"finishes":0,"undos":1,"undo_rate":100,"users":1,"versions":5,"last":"2026-06-11","workflow":"Text (Pilot)","last_user":"Norian Brown","active":["Norian Brown"],"avg_dur_sec":0,"top_tasks":[["Assigned Ed Write Draft",2]],"is_stalled":false,"daily_fin":[]},{"code":"433322","object_name":"433322 WHHG6 Ch 05 Article SE","publication":"ka Elementary School","parent_name":"","events":2,"finishes":1,"undos":0,"undo_rate":0,"users":1,"versions":1,"last":"2026-06-11","workflow":"Text (Text-First)","last_user":"Beth Logsdon","active":["Beth Logsdon"],"avg_dur_sec":0,"top_tasks":[["Assigned Ed Write Draft",2]],"is_stalled":false,"daily_fin":[["2026-06-11",1]]},{"code":"432369","object_name":"432369 OAPP A Article SE","publication":"ka Elementary School","parent_name":"","events":2,"finishes":0,"undos":1,"undo_rate":100,"users":1,"versions":97,"last":"2026-06-11","workflow":"Text (Text-First)","last_user":"Nikki De Jong","active":["Nikki De Jong"],"avg_dur_sec":0,"top_tasks":[["Ready for Print",2]],"is_stalled":false,"daily_fin":[]},{"code":"411825","object_name":"411825 RC5 SS FM Article TE EXTRA","publication":"ka Elementary School","parent_name":"","events":2,"finishes":1,"undos":0,"undo_rate":0,"users":1,"versions":0,"last":"2026-06-11","workflow":"","last_user":"Hailey Gritton","active":["Hailey Gritton"],"avg_dur_sec":0,"top_tasks":[["Edit Metadata",2]],"is_stalled":false,"daily_fin":[["2026-06-11",1]]},{"code":"432342","object_name":"432342 JOTB E Article TE","publication":"ka Elementary School","parent_name":"","events":2,"finishes":0,"undos":1,"undo_rate":100,"users":1,"versions":1,"last":"2026-06-13","workflow":"Text (Text-First)","last_user":"Juliane Roberts","active":["Juliane Roberts"],"avg_dur_sec":0,"top_tasks":[["Assigned Ed Write Draft",2]],"is_stalled":false,"daily_fin":[]}],"checkout":[{"user":"Ruth Ann Chappell","code":"438111","obj_name":"438111 CVS V SpVoc U1 Q1 Article Q","task":"Edit Metadata","workflow":"Text (Text-First)","since":"2026-06-11","days_open":3,"pub":"Abeka High School"}],"bottlenecks":[{"task":"Edit Metadata","accepts":390,"finishes":94,"undos":54,"net_pending":242,"avg_dur_sec":0},{"task":"Perm/Credits Rvw 1","accepts":91,"finishes":0,"undos":0,"net_pending":91,"avg_dur_sec":0},{"task":"Quality Mgr Rvw","accepts":32,"finishes":3,"undos":0,"net_pending":29,"avg_dur_sec":0},{"task":"Perm/Credits Rvw 2","accepts":18,"finishes":0,"undos":0,"net_pending":18,"avg_dur_sec":0},{"task":"Managing Ed Rvw 2","accepts":29,"finishes":17,"undos":0,"net_pending":12,"avg_dur_sec":0},{"task":"Layout Approved","accepts":20,"finishes":10,"undos":0,"net_pending":10,"avg_dur_sec":0},{"task":"Hold for Pilot Feedback","accepts":20,"finishes":11,"undos":0,"net_pending":9,"avg_dur_sec":0},{"task":"Designer Release Pre-A R1","accepts":19,"finishes":10,"undos":0,"net_pending":9,"avg_dur_sec":0},{"task":"In Proofing R1","accepts":53,"finishes":34,"undos":11,"net_pending":8,"avg_dur_sec":0},{"task":"In Editorial Round Final","accepts":16,"finishes":7,"undos":1,"net_pending":8,"avg_dur_sec":0},{"task":"Assigned Ed Rvw Final","accepts":18,"finishes":9,"undos":2,"net_pending":7,"avg_dur_sec":0},{"task":"In Layout Review","accepts":41,"finishes":33,"undos":1,"net_pending":7,"avg_dur_sec":0},{"task":"In Editorial Round","accepts":15,"finishes":6,"undos":2,"net_pending":7,"avg_dur_sec":0},{"task":"Assigned Ed Rvw 1","accepts":22,"finishes":17,"undos":0,"net_pending":5,"avg_dur_sec":0},{"task":"Preliminary Layout","accepts":5,"finishes":0,"undos":0,"net_pending":5,"avg_dur_sec":0},{"task":"Initiate Art & Illustration","accepts":5,"finishes":0,"undos":0,"net_pending":5,"avg_dur_sec":0},{"task":"Place InCopy Articles","accepts":33,"finishes":23,"undos":5,"net_pending":5,"avg_dur_sec":0},{"task":"Editorial Rounds 3","accepts":12,"finishes":8,"undos":0,"net_pending":4,"avg_dur_sec":0},{"task":"Layout Revisions Rvw 1","accepts":6,"finishes":2,"undos":0,"net_pending":4,"avg_dur_sec":0},{"task":"Assigned Ed Rvw 2","accepts":12,"finishes":7,"undos":1,"net_pending":4,"avg_dur_sec":0},{"task":"Product Mgr Resolve 2","accepts":10,"finishes":7,"undos":0,"net_pending":3,"avg_dur_sec":0},{"task":"Create InCopy Articles","accepts":61,"finishes":52,"undos":6,"net_pending":3,"avg_dur_sec":0},{"task":"Assigned Ed Rvw","accepts":15,"finishes":11,"undos":1,"net_pending":3,"avg_dur_sec":0},{"task":"Product Mgr Resolve","accepts":15,"finishes":12,"undos":0,"net_pending":3,"avg_dur_sec":0},{"task":"Assigned Ed Resolve ME Review","accepts":14,"finishes":6,"undos":5,"net_pending":3,"avg_dur_sec":0},{"task":"Product Mgr Rvw Final","accepts":13,"finishes":9,"undos":1,"net_pending":3,"avg_dur_sec":0},{"task":"Layout Revisions 1","accepts":20,"finishes":16,"undos":2,"net_pending":2,"avg_dur_sec":0},{"task":"Designer Rvw Final","accepts":3,"finishes":1,"undos":0,"net_pending":2,"avg_dur_sec":0},{"task":"In Pre-A R2","accepts":9,"finishes":7,"undos":0,"net_pending":2,"avg_dur_sec":0},{"task":"Production Mgr Request Apogee Proof","accepts":4,"finishes":1,"undos":1,"net_pending":2,"avg_dur_sec":0}],"weekly_finishes":{"labels":["2026-W24"],"values":[1852]},"activity":{"labels":["2026-06-11","2026-06-12","2026-06-13","2026-06-14"],"values":[2094,1676,470,46]},"wf_finishes":{"labels":["Text (Pilot)","Text (Text-First)","Layout (Text-First)","Layout (Pilot)"],"values":[474,667,192,179]},"top_users":{"labels":["Karen Kisner","Hailey Gritton","Kimberly Harrington","Juliane Roberts","Amy Yohe","Barbie Tupua","Wes Turner","Ruth Ann Chappell","Lea Sulistyo","Tammy McLaughlin","Jordan Lynch","Andrea McDonald","Ana Schriever","Thomas McKeen","Daniel Becerra","Jen Weeks","Hannah Barreto","Ashlee Oropeza","Micah Gorman","John Halbach"],"values":[353,252,243,183,176,166,153,140,139,135,132,128,116,112,110,110,105,101,94,92]},"task_avg_duration":[],"k4_top":{"labels":["432423 c RC6 31-34 Layout TE","246182 WorldGeo Ch 21 Article TE","440507 BD b FM Article TE","432571 SVP 6 11-20 LYT SE","432237 Lang 6 L043b-050a Article Cu","432687 Arith 6 B L002 Article SE (P","439436 HMSCHL Algebra 2 App B Artic","438065 CVS V Comp Supplement SE","436348 PFL b CH6 Layout TE","438936 SpanC L16-20 Article PE","440809 HMSCHL Spanish C FM Article ","439401 HMSCHL English 9 L 151-170 A","432253 Arith 6 L002 Curr Article (P","290319 Geom z Objects Layout SE\u2022","246239 WorldGeo PR8-9 Layout MS","440825 HMSCHL PFL L 001-30 Article ","439495 HMSCHL Physics L 1-170 Layou","433586 CGH CH04.1 Article SE PILOT","439479 HMSCHL Bible Doctrines APP A","438014 GramV U5 Article SE","440817 HMSHCL World Geography App B","432407 RC6 SS 26-30 Layout SE","435163 AmerLit U4 Article SE","438081 CVSV Comp U1 Layout TE","438103 CVS V Comp U1 Article Q"],"events":[615,453,415,370,266,202,157,129,125,124,119,115,106,88,74,72,68,51,50,48,46,42,35,35,33],"finishes":[273,206,193,171,128,82,69,60,48,59,57,46,21,40,20,35,29,23,23,21,18,15,15,14,16]}};
+const ASANA_MAP = {"246166":"World Geography SE","246182":"World Geography SE","246204":"World Geography SE","246239":"World Geography SE","269689":"Homeschool Grade 6 Bible Curr","269735":"Bible 6 SE","290319":"Geometry SE","339393":"Geometry SE","369136":"Algebra 1 SE","372587":"Language Arts 6 TE","377805":"Chemistry SE","401463":"Algebra 2 SE","406066":"Algebra 2 SE","407631":"CLS SE","411663":"Reading Comprehension 6 SE","411671":"Arithmetic 6 SE","411809":"Reading Comprehension 6 SE","411825":"Reading Comprehension 6 TE","411922":"Writing with Creativity 6 SE","411949":"Writing with Creativity 6 SE","412015":"Arithmetic 6 SE","412023":"Arithmetic 6 SE","412031":"Arithmetic 6 SE","412139":"Western Hemisphere History & Geography SE","412279":"Enjoying God's World SE","412295":"Enjoying God's World SE","412503":"Algebra 2 SE","412597":"Heritage Studies 6 SE","415219":"Geometry SE","415324":"Of America: Pioneers and Patriots TE","428507":"Geometry SE","428515":"Geometry SE","428523":"Geometry SE","428566":"Proverbs SE","428574":"Proverbs SE","428604":"Proverbs SE","429236":"Geometry SE","430072":"Chemistry SE","430077":"Chemistry SE","431057":"Algebra 1 SE","431435":"Arithmetic 6 SE","432113":"Practical Living Courses SE","432237":"Language Arts 6 Lang Curr","432253":"Arithmetic 6 Curr","432407":"Reading Comprehension 6 SE","432423":"Reading Comprehension 6 SE","432474":"God's Gift of of Language C SE","432482":"Language Arts 6 TE","432504":"Language Arts 6 QT","432571":"Writing with Creativity 6 SE","432598":"Writing with Creativity 6 SE","432601":"Writing with Creativity 6 SE","432687":"Arithmetic 6 SE","432695":"Arithmetic 6 SE","432717":"Arithmetic 6 SE","432822":"Elementary Spanish B SE","433462":"Enjoying God's World SE","433489":"Enjoying God's World SE","433535":"Enjoying God's World SE","433822":"Homeschool Science 5 Curr","433823":"Homeschool Science 5 Curr","433829":"Homeschool Science 5 Curr","435163":"American Literature SE","435171":"American Literature SE","435271":"Writing with Creativity 6 SE","435465":"Heritage Studies 6 SE","436291":"Bible 8 SE","436348":"Practical Living Courses TE","436356":"Practical Living Courses SE","436372":"Practical Living Courses SE","436569":"Elementary Spanish B SE","436577":"Homeschool Spanish B TC","437352":"Homeschool Spanish B TC","438014":"Grammar V SE","438022":"Grammar V SE","438049":"Grammar V SE","438065":"Composition Vocabulary Spelling V SE","438081":"Composition Vocabulary Spelling V SE","438103":"Composition Vocabulary Spelling V SE","438111":"Composition Vocabulary Spelling V SE","438863":"Elementary Spanish C SE","438871":"Elementary Spanish C SE","438898":"Elementary Spanish C TE","438901":"Elementary Spanish C TC","438928":"Elementary Spanish C TC","438936":"Elementary Spanish C SE","438944":"Homeschool Elementary Spanish C TC","438945":"Homeschool Elementary Spanish C TC","438952":"Elementary Spanish C SE","438955":"Homeschool Spanish C TC","439347":"Heritage Studies 6 SE","439401":"American Literature SE","439436":"Algebra 2 SE","439495":"Chemistry SE","439665":"Homeschool Bible 5 Curr","439738":"Elementary Spanish C SE","439746":"Language Arts 6 TE","440485":"Practical Living Courses SE","440507":"Practical Living Courses TE","440515":"Practical Living Courses SE","440809":"Homeschool Spanish C TC","440825":"American Literature SE","441382":"Heritage Studies 6 SE"};
+let LIVE = null;
+
+function fmtDur(sec){
+  if(!sec||sec<=0)return '–';
+  if(sec<60)return sec+'s';
+  if(sec<3600)return Math.round(sec/60)+'m';
+  return Math.floor(sec/3600)+'h'+(Math.round((sec%3600)/60)||'')+'m';
+}
+function wfBadge(wf){
+  if(!wf)return '';
+  const l=wf.toLowerCase(),cls=l.includes('text')?'wf-text':l.includes('image')||l.includes('art')?'wf-img':'wf-other';
+  return `<span class="wf-badge ${cls}">${wf}</span>`;
+}
+function daysSince(d,ref){
+  if(!d)return 9999;
+  const r=ref||D.date_range.to;
+  return Math.floor((new Date(r)-new Date(d))/86400000);
+}
+function topTasks(tasks){
+  if(!tasks||!tasks.length)return '–';
+  return tasks.slice(0,2).map(([n,c])=>`<span style="color:#94a3b8">${n}</span><small style="color:#475569"> ×${c}</small>`).join('<br>');
+}
+function pctBar(pct){
+  const clr=pct>=75?'var(--green)':pct>=40?'var(--accent)':'var(--yellow)';
+  return `<div class="pct-bar-wrap"><div class="pct-bar" style="width:${pct}%;background:${clr}"></div></div><span style="color:${clr};font-weight:600">${pct}%</span>`;
+}
+function expandable(text,maxW){
+  return `<td title="${text}" style="max-width:${maxW}px;overflow:hidden;text-overflow:ellipsis;cursor:pointer" onclick="this.style.whiteSpace=this.style.whiteSpace==='normal'?'nowrap':'normal';this.style.maxWidth=this.style.maxWidth==='none'?'${maxW}px':'none'">${text}</td>`;
+}
+
+const builtTabs={};
+function switchTab(n,el){
+  document.querySelectorAll('.tab-panel').forEach((p,i)=>p.classList.toggle('active',i===n));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  if(!builtTabs[n]){builtTabs[n]=true;[buildProducts,buildInProgress,buildActivity,buildBottlenecks,buildTeam,buildLiveTab,()=>{},()=>{}][n]();}
+}
+
+let sortCol='events',sortDir=-1,filterMode='all',searchVal='';
+function srt(col){if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=-1;}renderProducts();}
+function setFilter(f,btn){filterMode=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderProducts();}
+function onSearch(v){searchVal=v.toLowerCase();renderProducts();}
+
+function buildProducts(){
+  const fin=D.products.reduce((a,p)=>a+p.finishes,0);
+  const rework=D.products.filter(p=>p.undo_rate>=20||p.versions>=10).length;
+  document.getElementById('prod-stats').innerHTML=`
+    <div class="stat"><div class="label">Products</div><div class="val">${D.products.length}</div><div class="sub">${D.date_range.from} – ${D.date_range.to}</div></div>
+    <div class="stat"><div class="label">Total Events</div><div class="val">${D.total_events.toLocaleString()}</div></div>
+    <div class="stat"><div class="label">Total Finishes</div><div class="val">${fin.toLocaleString()}</div></div>
+    <div class="stat"><div class="label">Checked Out</div><div class="val" style="color:var(--accent)">${D.checkout.length}</div></div>
+    <div class="stat"><div class="label">Rework Risk</div><div class="val" style="color:var(--yellow)">${rework}</div><div class="sub">high undo/versions</div></div>`;
+  renderProducts();
+}
+
+function renderProducts(){
+  let prods=[...D.products];
+  if(filterMode==='active') prods=prods.filter(p=>daysSince(p.last)<=1);
+  else if(filterMode==='rework') prods=prods.filter(p=>p.undo_rate>=20||p.versions>=10);
+  else if(filterMode==='hs') prods=prods.filter(p=>(p.publication||'').toLowerCase().includes('high school'));
+  else if(filterMode==='el') prods=prods.filter(p=>(p.publication||'').toLowerCase().includes('elementary'));
+  if(searchVal) prods=prods.filter(p=>(p.object_name||'').toLowerCase().includes(searchVal)||(p.code||'').includes(searchVal)||(p.publication||'').toLowerCase().includes(searchVal));
+  prods.sort((a,b)=>{let av=a[sortCol]??'',bv=b[sortCol]??'';return(typeof av==='string'?av.localeCompare(bv):(av-bv))*sortDir;});
+  const showA=LIVE&&document.getElementById('asana-col-hdr').style.display!=='none';
+  const showK=LIVE&&document.getElementById('kb-col-hdr').style.display!=='none';
+  const rows=prods.map(p=>{
+    const ds=daysSince(p.last);
+    const dot=ds<=1?`<span class="active-dot"></span>`:'';
+    const rFlag=(p.undo_rate>=20||p.versions>=10)?'<span style="color:var(--yellow);margin-left:4px" title="Rework risk">⚠️</span>':'';
+    const uc=p.undo_rate>=30?'sev-high':p.undo_rate>=10?'sev-med':'';
+    const dtColor=ds>2?'var(--yellow)':'var(--green)';
+    let aC='',kC='';
+    if(showA&&LIVE){const a=ASANA_MAP[p.code],d=a&&LIVE.asana[a];aC=d?pctBar(d.pct):'–';}
+    if(showK&&LIVE){const k=LIVE.kanban[p.code];kC=k?`<span style="color:#94a3b8;font-size:11px">${k.lastActivity}</span>`:'–';}
+    return `<tr>
+      <td style="color:#64748b;font-size:11px">${p.code}</td>
+      ${expandable(p.object_name||'',240)}
+      <td>${wfBadge(p.workflow)}</td>
+      <td style="color:${dtColor}">${p.last||'–'}</td>
+      <td style="color:#94a3b8;max-width:130px;overflow:hidden;text-overflow:ellipsis">${p.last_user||'–'}</td>
+      <td style="text-align:right">${p.versions||0}</td>
+      <td style="text-align:right">${p.events}</td>
+      <td style="text-align:right">${p.finishes}</td>
+      <td class="${uc}" style="text-align:right">${p.undo_rate?p.undo_rate+'%':'–'}${rFlag}</td>
+      <td style="text-align:right">${fmtDur(p.avg_dur_sec)}</td>
+      <td style="text-align:right">${p.users}</td>
+      ${showA?`<td>${aC}</td>`:''}${showK?`<td>${kC}</td>`:''}
+      <td style="max-width:180px;line-height:1.6">${topTasks(p.top_tasks)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('prod-tbody').innerHTML=rows||'<tr><td colspan="14" style="text-align:center;color:#475569;padding:20px">No products match</td></tr>';
+}
+
+function buildInProgress(){
+  const co=D.checkout;
+  document.getElementById('inprog-badge').textContent=co.length;
+  const maxD=co.length?Math.max(...co.map(c=>c.days_open)):0;
+  document.getElementById('ip-stats').innerHTML=`
+    <div class="stat"><div class="label">Checked Out</div><div class="val">${co.length}</div></div>
+    <div class="stat"><div class="label">Longest Open</div><div class="val" style="color:${maxD>2?'var(--red)':'var(--green)'}">${maxD}d</div></div>
+    <div class="stat"><div class="label">Data Window</div><div class="val" style="font-size:14px">${D.date_range.from}</div><div class="sub">to ${D.date_range.to}</div></div>`;
+  document.getElementById('ip-tbody').innerHTML=co.map(c=>{
+    const dc=c.days_open>=3?'sev-high':c.days_open>=1?'sev-med':'sev-low';
+    return `<tr>
+      <td style="color:var(--accent);font-weight:600">${c.user}</td>
+      ${expandable(c.obj_name||c.code,220)}
+      <td style="color:#64748b">${c.pub||'–'}</td>
+      <td>${wfBadge(c.workflow)}</td>
+      <td>${c.task||'–'}</td>
+      <td style="color:#64748b">${c.since}</td>
+      <td class="${dc}" style="text-align:right;font-weight:700">${c.days_open}d</td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="7" style="padding:20px;text-align:center;color:#475569">No tasks currently checked out</td></tr>';
+}
+
+function buildActivity(){
+  const fin=D.products.reduce((a,p)=>a+p.finishes,0);
+  document.getElementById('act-stats').innerHTML=`
+    <div class="stat"><div class="label">Total Events</div><div class="val">${D.total_events.toLocaleString()}</div></div>
+    <div class="stat"><div class="label">Total Finishes</div><div class="val">${fin.toLocaleString()}</div></div>
+    <div class="stat"><div class="label">Days in Window</div><div class="val">${D.activity.labels.length}</div><div class="sub">${D.date_range.from} – ${D.date_range.to}</div></div>
+    <div class="stat"><div class="label">Active Products</div><div class="val">${D.products.length}</div></div>`;
+  new Chart(document.getElementById('daily-chart'),{type:'bar',data:{
+    labels:D.activity.labels.map(d=>d.slice(5)),
+    datasets:[{label:'Events',data:D.activity.values,backgroundColor:'rgba(79,142,247,0.7)',borderColor:'#4f8ef7',borderWidth:1}]
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#64748b'}},y:{ticks:{color:'#64748b'},grid:{color:'rgba(255,255,255,0.05)'}}}}});
+  const wf=D.wf_finishes;
+  new Chart(document.getElementById('wf-chart'),{type:'doughnut',data:{labels:wf.labels,datasets:[{data:wf.values,backgroundColor:['#4f8ef7','#a78bfa','#2dd4bf','#f59e0b','#ef4444','#22c55e'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:10},boxWidth:10}}}}});
+  const tp=D.k4_top;
+  new Chart(document.getElementById('top-prod-chart'),{type:'bar',data:{
+    labels:tp.labels.map(l=>l.slice(0,28)),
+    datasets:[{label:'Events',data:tp.events,backgroundColor:'rgba(79,142,247,0.6)',borderColor:'#4f8ef7',borderWidth:1},{label:'Finishes',data:tp.finishes,backgroundColor:'rgba(34,197,94,0.6)',borderColor:'#22c55e',borderWidth:1}]
+  },options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}}},scales:{x:{ticks:{color:'#64748b',font:{size:10}}},y:{ticks:{color:'#94a3b8',font:{size:9}}}}}});
+}
+
+function buildBottlenecks(){
+  const bots=D.bottlenecks.filter(b=>b.net_pending>0);
+  const totPend=bots.reduce((a,b)=>a+b.net_pending,0);
+  document.getElementById('bot-badge').textContent=bots.length;
+  document.getElementById('bot-stats').innerHTML=`
+    <div class="stat"><div class="label">Steps with Backlog</div><div class="val" style="color:var(--red)">${bots.length}</div></div>
+    <div class="stat"><div class="label">Total Net Pending</div><div class="val">${totPend.toLocaleString()}</div></div>
+    <div class="stat"><div class="label">Total Undos</div><div class="val" style="color:var(--yellow)">${D.products.reduce((a,p)=>a+p.undos,0)}</div></div>
+    <div class="stat"><div class="label">Top Bottleneck</div><div class="val" style="font-size:13px;color:var(--red)">${bots[0]?.task?.slice(0,20)||'–'}</div><div class="sub">${bots[0]?.net_pending||0} pending</div></div>`;
+  const maxN=bots[0]?.net_pending||1;
+  document.getElementById('bot-tbody').innerHTML=bots.map(b=>{
+    const pct=Math.round(b.net_pending/maxN*100);
+    const clr=pct>60?'var(--red)':pct>25?'var(--yellow)':'var(--green)';
+    return `<tr><td style="font-weight:500">${b.task}</td><td style="text-align:right">${b.accepts}</td><td style="text-align:right;color:var(--green)">${b.finishes}</td><td style="text-align:right;color:var(--yellow)">${b.undos}</td><td><span class="net-bar" style="width:${Math.max(4,pct*.8)}px;background:${clr}"></span><span style="color:${clr};font-weight:700">${b.net_pending}</span></td><td>${fmtDur(b.avg_dur_sec)}</td></tr>`;
+  }).join('');
+  new Chart(document.getElementById('bot-chart'),{type:'bar',data:{labels:bots.slice(0,15).map(b=>b.task.slice(0,22)),datasets:[{label:'Net Pending',data:bots.slice(0,15).map(b=>b.net_pending),backgroundColor:'rgba(239,68,68,0.7)',borderColor:'#ef4444',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#64748b',font:{size:10}}},y:{ticks:{color:'#94a3b8',font:{size:10}}}}}});
+  document.getElementById('undo-tbody').innerHTML=D.products.filter(p=>p.undos>0).sort((a,b)=>b.undo_rate-a.undo_rate).map(p=>{
+    const clr=p.undo_rate>=50?'var(--red)':p.undo_rate>=20?'var(--yellow)':'var(--green)';
+    return `<tr>${expandable(p.object_name||p.code,200)}<td style="color:#64748b">${p.publication||'–'}</td><td><div class="undo-bar-wrap"><div class="undo-bar" style="width:${Math.max(4,Math.round(p.undo_rate*.8))}px;background:${clr}"></div><span style="color:${clr};font-weight:700">${p.undo_rate}%</span></div></td><td style="text-align:right;color:var(--yellow)">${p.undos}</td><td style="text-align:right;color:var(--green)">${p.finishes}</td><td style="text-align:right">${p.versions}</td><td>${p.last||'–'}</td></tr>`;
+  }).join('');
+}
+
+function buildTeam(){
+  const tu=D.top_users;
+  document.getElementById('team-stats').innerHTML=`
+    <div class="stat"><div class="label">Active Users</div><div class="val">${tu.labels.length}+</div></div>
+    <div class="stat"><div class="label">Top User</div><div class="val" style="font-size:13px">${tu.labels[0]||'–'}</div><div class="sub">${(tu.values[0]||0).toLocaleString()} events</div></div>
+    <div class="stat"><div class="label">Avg Events/User</div><div class="val">${tu.values.length?Math.round(tu.values.reduce((a,v)=>a+v,0)/tu.values.length).toLocaleString():'–'}</div></div>`;
+  new Chart(document.getElementById('user-chart'),{type:'bar',data:{labels:tu.labels,datasets:[{label:'Events',data:tu.values,backgroundColor:'rgba(79,142,247,0.7)',borderColor:'#4f8ef7',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#64748b',font:{size:10}}},y:{ticks:{color:'#94a3b8',font:{size:10}}}}}});
+  const td=D.task_avg_duration;
+  new Chart(document.getElementById('dur-chart'),{type:'bar',data:{labels:td.map(t=>t[0].slice(0,22)),datasets:[{label:'Avg Duration',data:td.map(t=>Math.round(t[1]/60)),backgroundColor:'rgba(167,139,250,0.7)',borderColor:'#a78bfa',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw}m (${fmtDur(td[ctx.dataIndex][1])})`}}},scales:{x:{ticks:{color:'#64748b',font:{size:10}},title:{display:true,text:'minutes',color:'#475569',font:{size:10}}},y:{ticks:{color:'#94a3b8',font:{size:10}}}}}});
+}
+
+function buildLiveTab(){ loadLiveData(); }
+
+async function loadLiveData(){
+  const aToken=document.getElementById('asana-token-input').value.trim();
+  const kToken=document.getElementById('kanban-token-input').value.trim();
+  if(!aToken){showErr('Asana token required.');return;}
+  const btn=document.getElementById('load-live-btn');
+  btn.disabled=true;btn.textContent='Loading…';
+  document.getElementById('live-spinner').style.display='inline';
+  document.getElementById('live-error').style.display='none';
+  document.getElementById('live-content').style.display='none';
+  document.getElementById('live-status').textContent='Fetching…';
+  try{
+    const WS='1123446613688331',TODAY=new Date().toISOString().slice(0,10);
+    const pr=await fetch(`https://app.asana.com/api/1.0/projects?workspace=${WS}&limit=100&opt_fields=name,due_date,start_on`,{headers:{Authorization:`Bearer ${aToken}`}});
+    if(!pr.ok) throw new Error(`Asana ${pr.status}: ${pr.statusText}`);
+    const projects=(await pr.json()).data||[];
+    const trs=await Promise.all(projects.slice(0,40).map(p=>
+      fetch(`https://app.asana.com/api/1.0/tasks?project=${p.gid}&opt_fields=name,completed,due_on&limit=100`,{headers:{Authorization:`Bearer ${aToken}`}})
+        .then(r=>r.json()).then(d=>({gid:p.gid,tasks:d.data||[]})).catch(()=>({gid:p.gid,tasks:[]}))
+    ));
+    const asana={};
+    projects.forEach(p=>{
+      const tasks=trs.find(t=>t.gid===p.gid)?.tasks||[];
+      const wd=tasks.filter(t=>t.due_on).sort((a,b)=>a.due_on.localeCompare(b.due_on));
+      const comp=wd.filter(t=>t.completed),incomp=wd.filter(t=>!t.completed);
+      const total=tasks.length,done=tasks.filter(t=>t.completed).length;
+      asana[p.name]={due_date:p.due_date||null,start_on:p.start_on||null,total,done,pct:total?Math.round(done/total*100):0,lastStep:comp[comp.length-1]?.name||null,currentStep:incomp[0]?.name||null,currentDue:incomp[0]?.due_on||null,overdueCount:incomp.filter(t=>t.due_on&&t.due_on<TODAY).length};
+    });
+    let kanban={};
+    if(kToken){try{const kr=await fetch('https://kanban.abeka.com/api/v1/boards?per_page=300',{headers:{Authorization:`Bearer ${kToken}`,Accept:'application/xml'}});
+      if(kr.ok){const x=await kr.text();for(const m of x.matchAll(/<board>([\s\S]*?)<\/board>/g)){const b=m[1],name=b.match(/<name[^>]*>(.*?)<\/name>/)?.[1]?.trim()||'',ver=parseInt(b.match(/<version[^>]*>(\d+)<\/version>/)?.[1]||'0',10),upd=b.match(/<updated-at[^>]*>([\d\-T:+]+)/)?.[1]?.slice(0,10)||'',code=name.match(/^(\d{5,10})/)?.[1];if(code){if(!kanban[code])kanban[code]={totalVersions:0,lastActivity:'',boards:[]};kanban[code].totalVersions+=ver;if(upd>kanban[code].lastActivity)kanban[code].lastActivity=upd;kanban[code].boards.push(name.replace(/^\d+\s*/,''));}}}
+    }catch(e){console.warn('Kanban CORS:',e.message);}}
+    LIVE={asana,kanban,generated:new Date().toISOString()};
+    renderLiveData();
+  }catch(e){showErr('Error: '+e.message);document.getElementById('live-status').textContent='Error';}
+  finally{btn.disabled=false;btn.textContent='↻ Refresh';document.getElementById('live-spinner').style.display='none';}
+}
+
+function showErr(msg){const el=document.getElementById('live-error');el.innerHTML=`<div class="error-msg">${msg}</div>`;el.style.display='block';}
+
+// ── Schedule tab ──────────────────────────────────────────────
+let schedData=[], schedFilter_='all', schedSort_={col:'delta',dir:1};
+let schedPieObj=null, schedScatterObj=null;
+
+function computeSchedStatus(d){
+  const TODAY=new Date().toISOString().slice(0,10);
+  if(d.pct===100) return 'complete';
+  if(!d.due_date) return 'nodate';
+  const due=new Date(d.due_date), start=d.start_on?new Date(d.start_on):null;
+  const now=new Date(TODAY);
+  let expectedPct=null;
+  if(start && due>start){
+    const elapsed=Math.max(0,now-start), total=due-start;
+    expectedPct=Math.min(100,Math.round(elapsed/total*100));
+  }
+  if(d.overdueCount>0) return 'behind';
+  if(expectedPct===null) return d.overdueCount>0?'behind':'ontrack';
+  const delta=d.pct-expectedPct;
+  if(delta<-20) return 'behind';
+  if(delta>15) return 'ahead';
+  return 'ontrack';
+}
+
+function buildSchedule(){
+  if(!LIVE){return;}
+  const TODAY=new Date().toISOString().slice(0,10);
+  const rows=[];
+  Object.entries(LIVE.asana).forEach(([name,d])=>{
+    const status=computeSchedStatus(d);
+    const due=d.due_date,start=d.start_on;
+    let expectedPct=null, daysLeft=null, delta=null;
+    if(due){
+      daysLeft=Math.round((new Date(due)-new Date(TODAY))/86400000);
+      if(start){
+        const st=new Date(start),dt=new Date(due),now=new Date(TODAY);
+        if(dt>st){const el=Math.max(0,now-st),tot=dt-st;expectedPct=Math.min(100,Math.round(el/tot*100));}
+      }
+      delta=expectedPct!==null?d.pct-expectedPct:null;
+    }
+    rows.push({name,status,actualPct:d.pct,expectedPct,delta,overdue:d.overdueCount,currentStep:d.currentStep||'–',due_date:due||'',daysLeft,start_on:start||''});
+  });
+  schedData=rows;
+  renderSchedule();
+  // Update badge with behind count
+  document.getElementById('sched-badge').textContent=rows.filter(r=>r.status==='behind').length;
+  document.getElementById('sched-loading').style.display='none';
+  document.getElementById('sched-content').style.display='block';
+  // Charts
+  const counts={complete:0,ahead:0,ontrack:0,behind:0,nodate:0};
+  rows.forEach(r=>counts[r.status]=(counts[r.status]||0)+1);
+  if(schedPieObj)schedPieObj.destroy();
+  schedPieObj=new Chart(document.getElementById('sched-pie'),{type:'doughnut',data:{
+    labels:['Complete','Ahead','On Track','Behind','No Date'],
+    datasets:[{data:[counts.complete,counts.ahead,counts.ontrack,counts.behind,counts.nodate],
+      backgroundColor:['#22c55e','#4f8ef7','#f59e0b','#ef4444','#475569'],borderWidth:0}]
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:10},boxWidth:10}}}}});
+  // Scatter: actual vs expected
+  const withDates=rows.filter(r=>r.expectedPct!==null);
+  if(schedScatterObj)schedScatterObj.destroy();
+  schedScatterObj=new Chart(document.getElementById('sched-scatter'),{type:'scatter',data:{datasets:[
+    {label:'Behind',data:withDates.filter(r=>r.status==='behind').map(r=>({x:r.expectedPct,y:r.actualPct,name:r.name})),backgroundColor:'rgba(239,68,68,0.7)',pointRadius:5},
+    {label:'On Track',data:withDates.filter(r=>r.status==='ontrack').map(r=>({x:r.expectedPct,y:r.actualPct,name:r.name})),backgroundColor:'rgba(245,158,11,0.7)',pointRadius:5},
+    {label:'Ahead',data:withDates.filter(r=>r.status==='ahead').map(r=>({x:r.expectedPct,y:r.actualPct,name:r.name})),backgroundColor:'rgba(79,142,247,0.7)',pointRadius:5},
+    {label:'Complete',data:withDates.filter(r=>r.status==='complete').map(r=>({x:r.expectedPct,y:r.actualPct,name:r.name})),backgroundColor:'rgba(34,197,94,0.7)',pointRadius:5},
+    {label:'Perfect line',data:[{x:0,y:0},{x:100,y:100}],type:'line',borderColor:'rgba(255,255,255,0.15)',borderDash:[4,4],pointRadius:0,fill:false},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},tooltip:{callbacks:{label:ctx=>ctx.raw.name?`${ctx.raw.name}: actual ${ctx.raw.y}% / expected ${ctx.raw.x}%`:''}}},scales:{x:{title:{display:true,text:'Expected %',color:'#475569',font:{size:10}},ticks:{color:'#64748b'},min:0,max:100},y:{title:{display:true,text:'Actual %',color:'#475569',font:{size:10}},ticks:{color:'#64748b'},min:0,max:100}}}});
+  // Stats
+  document.getElementById('sched-stats').innerHTML=`
+    <div class="stat"><div class="label">Behind</div><div class="val" style="color:var(--red)">${counts.behind}</div></div>
+    <div class="stat"><div class="label">On Track</div><div class="val" style="color:var(--yellow)">${counts.ontrack}</div></div>
+    <div class="stat"><div class="label">Ahead</div><div class="val" style="color:var(--accent)">${counts.ahead}</div></div>
+    <div class="stat"><div class="label">Complete</div><div class="val" style="color:var(--green)">${counts.complete}</div></div>
+    <div class="stat"><div class="label">No Date Set</div><div class="val" style="color:#475569">${counts.nodate}</div></div>`;
+}
+
+function schedFilter(f,btn){
+  schedFilter_=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderSchedule();
+}
+function srtSched(col){
+  if(schedSort_.col===col)schedSort_.dir*=-1;else{schedSort_.col=col;schedSort_.dir=-1;}
+  renderSchedule();
+}
+
+const STATUS_LABELS={'behind':'🔴 Behind','ontrack':'🟡 On Track','ahead':'🟢 Ahead','complete':'✅ Complete','nodate':'⚪ No Date'};
+const STATUS_CLR={'behind':'var(--red)','ontrack':'var(--yellow)','ahead':'var(--accent)','complete':'var(--green)','nodate':'#475569'};
+
+function renderSchedule(){
+  let rows=[...schedData];
+  if(schedFilter_!=='all') rows=rows.filter(r=>r.status===schedFilter_);
+  const{col,dir}=schedSort_;
+  rows.sort((a,b)=>{let av=a[col]??-9999,bv=b[col]??-9999;return(typeof av==='string'?av.localeCompare(bv):(av-bv))*dir;});
+  document.getElementById('sched-tbody').innerHTML=rows.map(r=>{
+    const dlClr=r.daysLeft!=null?(r.daysLeft<0?'var(--red)':r.daysLeft<14?'var(--yellow)':'var(--green)'):'#475569';
+    const dStr=r.daysLeft!=null?(r.daysLeft<0?`${Math.abs(r.daysLeft)}d overdue`:`${r.daysLeft}d left`):'–';
+    const dlt=r.delta!=null?(r.delta>=0?`<span style="color:var(--green)">+${r.delta}%</span>`:`<span style="color:var(--red)">${r.delta}%</span>`):'–';
+    return `<tr>
+      <td style="font-weight:600;color:${STATUS_CLR[r.status]};white-space:nowrap">${STATUS_LABELS[r.status]}</td>
+      ${expandable(r.name,200)}
+      <td style="text-align:right">${pctBar(r.actualPct)}</td>
+      <td style="text-align:right;color:#64748b">${r.expectedPct!=null?r.expectedPct+'%':'–'}</td>
+      <td style="text-align:right">${dlt}</td>
+      <td style="text-align:right;color:${r.overdue>0?'var(--red)':'#64748b'}">${r.overdue||'–'}</td>
+      ${expandable(r.currentStep,160)}
+      <td style="color:#64748b">${r.due_date||'–'}</td>
+      <td style="color:${dlClr};font-weight:600">${dStr}</td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="9" style="text-align:center;color:#475569;padding:20px">No products match</td></tr>';
+}
+
+let asanaChartObj=null;
+function renderLiveData(){
+  const{asana,kanban}=LIVE;
+  const pl=Object.entries(asana).sort((a,b)=>a[0].localeCompare(b[0]));
+  const ttl=pl.reduce((s,[,v])=>s+v.total,0),tdn=pl.reduce((s,[,v])=>s+v.done,0),tod=pl.reduce((s,[,v])=>s+v.overdueCount,0);
+  const ovr=ttl?Math.round(tdn/ttl*100):0;
+  document.getElementById('live-status').innerHTML=`<span class="live-dot"></span> Live`;
+  document.getElementById('live-age').textContent='As of '+new Date(LIVE.generated).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  document.getElementById('live-proj-count').textContent=pl.length;
+  document.getElementById('live-overall-pct').textContent=ovr+'%';
+  document.getElementById('live-overdue').textContent=tod.toLocaleString();
+  document.getElementById('live-kb-count').textContent=Object.keys(kanban).length||'CORS blocked';
+  document.getElementById('asana-proj-subtitle').textContent=`${pl.length} projects · ${tdn.toLocaleString()}/${ttl.toLocaleString()} tasks done`;
+  document.getElementById('asana-tbody').innerHTML=pl.map(([name,d])=>{
+    const clr=d.pct>=75?'var(--green)':d.pct>=40?'var(--accent)':'var(--yellow)';
+    return `<tr>${expandable(name,200)}<td style="text-align:right;color:var(--green)">${d.done}</td><td style="text-align:right;color:#64748b">${d.total}</td><td>${pctBar(d.pct)}</td>${expandable(d.currentStep||'–',160)}<td style="color:#64748b">${d.currentDue||'–'}</td><td style="color:${d.overdueCount>0?'var(--red)':'#64748b'};font-weight:${d.overdueCount>0?700:400}">${d.overdueCount||'–'}</td></tr>`;
+  }).join('');
+  if(asanaChartObj)asanaChartObj.destroy();
+  const c30=pl.slice(0,30);
+  asanaChartObj=new Chart(document.getElementById('asana-chart'),{type:'bar',data:{labels:c30.map(([n])=>n.slice(0,28)),datasets:[{label:'Done',data:c30.map(([,d])=>d.done),backgroundColor:'rgba(34,197,94,0.7)',borderColor:'#22c55e',borderWidth:1},{label:'Remaining',data:c30.map(([,d])=>d.total-d.done),backgroundColor:'rgba(79,142,247,0.4)',borderColor:'#4f8ef7',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}}},scales:{x:{stacked:true,ticks:{color:'#64748b',font:{size:10}}},y:{stacked:true,ticks:{color:'#94a3b8',font:{size:9}}}}}});
+  document.getElementById('cross-tbody').innerHTML=D.products.map(p=>{
+    const aN=ASANA_MAP[p.code],aD=aN&&asana[aN],kD=kanban[p.code];
+    return `<tr><td style="color:#64748b;font-size:11px">${p.code}</td>${expandable(p.object_name||'',200)}${expandable(aN||'–',160)}<td>${aD?pctBar(aD.pct):'–'}</td>${expandable(aD?.currentStep||'–',160)}<td style="color:${kD?'#94a3b8':'#475569'}">${kD?.lastActivity||'–'}</td><td style="text-align:right">${p.events}</td><td style="text-align:right">${p.finishes}</td></tr>`;
+  }).join('');
+  document.getElementById('live-content').style.display='block';
+  document.getElementById('asana-col-hdr').style.display='';
+  document.getElementById('kb-col-hdr').style.display=Object.keys(kanban).length>0?'':'none';
+  if(builtTabs[0])renderProducts();
+  buildSchedule();
+}
+
+// ── K4 LIVE TAB ──────────────────────────────────────────────────────────────
+let K4_ISSUES = null;
+let k4LiveFilter_active = 'all';
+let k4LiveSearch_term = '';
+
+const K4_EP = 'https://accelerated-abeka-v16-k4.fluxcloud.us/K4ServerABEKA/services/PublicationBasic';
+const K4_SA  = 'http://www.vjoon.com/k4/publication/basic/getIssuesByPublicationID1';
+const k4Soap = id => `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:pt="http://www.vjoon.com/ps/core/publication/wstypes/">
+  <soapenv:Header/><soapenv:Body>
+    <pt:getIssuesByPublicationID1Request>
+      <pt:publicationID>${id}</pt:publicationID>
+    </pt:getIssuesByPublicationID1Request>
+  </soapenv:Body></soapenv:Envelope>`;
+
+function k4ParseXml(txt, pub) {
+  const names = [...txt.matchAll(/<ns4:name[^>]*>([^<]+)<\/ns4:name>/g)].map(m=>m[1]);
+  const ids   = [...txt.matchAll(/<ns4:id[^>]*>(\d+)<\/ns4:id>/g)].map(m=>m[1]);
+  return ids.map((id,i)=>{
+    const name=(names[i]||''); const code=(name.match(/^(\d+)/)||[])[1]||'';
+    return {id,name,code,pub};
+  });
+}
+
+// Try Vercel proxy first (/api/k4proxy), fall back to direct SOAP fetch.
+async function k4FetchPub(pubID, pub) {
+  // Path 1: Vercel serverless proxy (same-origin, no CORS)
+  try {
+    const r = await fetch(`/api/k4proxy?pubID=${pubID}`);
+    if(r.ok) { const txt = await r.text(); return k4ParseXml(txt, pub); }
+  } catch(_) {}
+
+  // Path 2: Direct SOAP (works if dashboard is opened from K4 domain, or server allows CORS)
+  const creds = btoa('jordan jones:Minnesota58!');
+  const r = await fetch(K4_EP, {
+    method:'POST', credentials:'include',
+    headers:{Authorization:`Basic ${creds}`,'Content-Type':'text/xml;charset=UTF-8',SOAPAction:K4_SA},
+    body:k4Soap(pubID)
+  });
+  const buf = await r.arrayBuffer();
+  const txt = new TextDecoder().decode(buf);
+  if(txt.includes('faultstring')) throw new Error(txt.match(/<faultstring[^>]*>([^<]+)/)?.[1]||'SOAP fault');
+  return k4ParseXml(txt, pub);
+}
+
+async function loadK4Issues() {
+  const btn=document.getElementById('k4live-btn'),spin=document.getElementById('k4live-spinner'),err=document.getElementById('k4live-err');
+  btn.disabled=true; spin.style.display=''; err.style.display='none';
+  document.getElementById('k4live-status').textContent='Fetching…';
+  try {
+    const [hs,el] = await Promise.all([k4FetchPub('1591015400393','hs'), k4FetchPub('1626976338631','el')]);
+    K4_ISSUES = [...hs,...el];
+    const pbiCodes=new Set(D.products.map(p=>p.code));
+    const active=K4_ISSUES.filter(i=>pbiCodes.has(i.code)).length;
+    document.getElementById('k4live-hs-count').textContent=hs.length;
+    document.getElementById('k4live-el-count').textContent=el.length;
+    document.getElementById('k4live-active-count').textContent=active;
+    document.getElementById('k4live-inactive-count').textContent=K4_ISSUES.length-active;
+    document.getElementById('k4live-pbi-range').textContent=D.date_range.from+' – '+D.date_range.to;
+    document.getElementById('k4live-status').textContent='✓ Loaded';
+    document.getElementById('k4live-age').textContent='as of '+new Date().toLocaleTimeString();
+    document.getElementById('k4live-badge').textContent=K4_ISSUES.length;
+    document.getElementById('k4live-badge').style.display='';
+    document.getElementById('k4live-content').style.display='';
+    renderK4Live();
+  } catch(e) {
+    document.getElementById('k4live-status').textContent='Error';
+    err.style.display=''; err.textContent=e.message||String(e);
+    if(String(e).includes('fetch')) err.textContent+=' — deploy to Vercel for automatic access, or open from the K4 admin domain.';
+  } finally { btn.disabled=false; spin.style.display='none'; }
+}
+
+function k4liveFilter(f, el) {
+  k4LiveFilter_active = f;
+  document.querySelectorAll('#k4live-filters .filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderK4Live();
+}
+function k4liveSearch(v) { k4LiveSearch_term = v.toLowerCase(); renderK4Live(); }
+
+function renderK4Live() {
+  if(!K4_ISSUES) return;
+  const pbiMap = {};
+  D.products.forEach(p => { pbiMap[p.code] = p; });
+  let rows = K4_ISSUES.filter(i => {
+    if(k4LiveFilter_active==='active' && !pbiMap[i.code]) return false;
+    if(k4LiveFilter_active==='inactive' && pbiMap[i.code]) return false;
+    if(k4LiveFilter_active==='hs' && i.pub!=='hs') return false;
+    if(k4LiveFilter_active==='el' && i.pub!=='el') return false;
+    if(k4LiveSearch_term && !i.name.toLowerCase().includes(k4LiveSearch_term) &&
+       !(ASANA_MAP[i.code]||'').toLowerCase().includes(k4LiveSearch_term)) return false;
+    return true;
+  });
+  rows.sort((a,b)=>{
+    const pa=pbiMap[a.code],pb=pbiMap[b.code];
+    if(pa&&!pb)return -1;if(pb&&!pa)return 1;
+    return (pb?(pb.events||0):0)-(pa?(pa.events||0):0);
+  });
+  const pubLabel=p=>p==='hs'?'<span style="color:#7dd3fc">Abeka HS</span>':'<span style="color:#c4b5fd">Elementary</span>';
+  document.getElementById('k4live-tbody').innerHTML=rows.map(i=>{
+    const p=pbiMap[i.code],asana=ASANA_MAP[i.code]||'–';
+    const pill=p?`<span class="pill at">Active</span>`:`<span class="pill default" style="color:#f59e0b;background:#2d2400">Inactive</span>`;
+    return `<tr>
+      <td style="color:#64748b;font-size:11px;font-family:monospace">${i.code||'–'}</td>
+      <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis" title="${i.name}">${i.name}</td>
+      <td>${pubLabel(i.pub)}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;color:#94a3b8;font-size:11px" title="${asana}">${asana}</td>
+      <td>${pill}</td>
+      <td style="text-align:right;color:${p?'#e2e8f0':'#475569'}">${p?p.events:'–'}</td>
+      <td style="text-align:right;color:${p?'var(--green)':'#475569'}">${p?p.finishes:'–'}</td>
+      <td style="text-align:right;color:${p&&p.undo_rate>20?'var(--red)':p&&p.undo_rate>10?'var(--yellow)':'#64748b'}">${p?p.undo_rate+'%':'–'}</td>
+      <td>${p?wfBadge(p.workflow):''}</td>
+      <td style="color:#64748b;font-size:11px">${p?p.last:'–'}</td>
+    </tr>`;
+  }).join('');
+}
+
+document.getElementById('gen-lbl').textContent='K4 data: '+D.date_range.from+' – '+D.date_range.to+' · '+D.total_events.toLocaleString()+' events';
+document.getElementById('inprog-badge').textContent=D.checkout.length;
+document.getElementById('bot-badge').textContent=D.bottlenecks.filter(b=>b.net_pending>0).length;
+buildProducts();
+// Auto-load live Asana data on startup so Products tab shows Asana% immediately
+loadLiveData();
+</script>
+</body>
+</html>
