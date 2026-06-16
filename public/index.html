@@ -84,7 +84,7 @@ tr:hover td{background:var(--bg3)}
   <button class="tab-btn" onclick="switchTab(4,this)">Team</button>
   <button class="tab-btn" onclick="switchTab(5,this)">Asana + Kanban<span class="badge green">live</span></button>
   <button class="tab-btn" onclick="switchTab(6,this)">Schedule<span class="badge yellow" id="sched-badge">–</span></button>
-  <button class="tab-btn" onclick="switchTab(7,this)">K4 Live<span class="badge green" id="k4live-badge" style="display:none"></span></button>
+  <button class="tab-btn" onclick="switchTab(7,this);if(!getK4Session())showK4SessionSetup()">K4 Live<span class="badge green" id="k4live-badge" style="display:none"></span></button>
   <span style="margin-left:auto;font-size:11px;color:#475569" id="gen-lbl"></span>
 </div>
 
@@ -253,8 +253,24 @@ tr:hover td{background:var(--bg3)}
     <div class="stat"><div class="label">Active (in PBI)</div><div class="val" style="color:var(--green)" id="k4live-active-count">–</div><div class="sub" id="k4live-pbi-range"></div></div>
     <div class="stat"><div class="label">Inactive</div><div class="val" style="color:var(--yellow)" id="k4live-inactive-count">–</div><div class="sub">Not in PBI window</div></div>
   </div>
+  <!-- K4 session setup panel -->
+  <div id="k4session-setup" style="display:none;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:16px;margin-bottom:16px;max-width:600px">
+    <div style="font-weight:600;margin-bottom:8px;color:#f1f5f9">🔑 K4 Session Required</div>
+    <div style="color:#94a3b8;font-size:13px;margin-bottom:12px;line-height:1.5">
+      To fetch live K4 data, paste your JSESSIONID cookie:<br>
+      <strong style="color:#cbd5e1">Chrome → F12 → Application → Cookies → accelerated-abeka-v16-k4.fluxcloud.us → JSESSIONID → copy Value</strong>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="k4session-input" type="password" placeholder="Paste JSESSIONID here…"
+        style="flex:1;padding:8px 10px;background:#0f172a;border:1px solid #475569;border-radius:6px;color:#f1f5f9;font-size:13px;font-family:monospace"
+        onkeydown="if(event.key==='Enter')saveK4Session()">
+      <button class="load-btn" onclick="saveK4Session()" style="margin:0">Save &amp; Load</button>
+      <button onclick="document.getElementById('k4session-setup').style.display='none'" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:18px">✕</button>
+    </div>
+  </div>
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
     <button class="load-btn" id="k4live-btn" onclick="loadK4Issues()">↻ Refresh from K4</button>
+    <button onclick="showK4SessionSetup()" title="Update K4 session" style="background:#1e293b;border:1px solid #334155;border-radius:6px;padding:6px 10px;cursor:pointer;color:#94a3b8;font-size:14px">🔑</button>
     <span id="k4live-spinner" style="display:none;color:#64748b;font-size:12px">Fetching…</span>
     <span id="k4live-err" style="display:none;color:var(--red);font-size:12px"></span>
   </div>
@@ -666,15 +682,47 @@ function k4ParseXml(txt, pub) {
   });
 }
 
-// Try Vercel proxy first (/api/k4proxy), fall back to direct SOAP fetch.
-async function k4FetchPub(pubID, pub) {
-  // Path 1: Vercel serverless proxy (same-origin, no CORS)
-  try {
-    const r = await fetch(`/api/k4proxy?pubID=${pubID}`);
-    if(r.ok) { const txt = await r.text(); return k4ParseXml(txt, pub); }
-  } catch(_) {}
+function getK4Session() { return localStorage.getItem('k4jsessionid') || ''; }
+function showK4SessionSetup() {
+  const panel = document.getElementById('k4session-setup');
+  panel.style.display = '';
+  document.getElementById('k4session-input').value = '';
+  document.getElementById('k4session-input').focus();
+}
+function saveK4Session() {
+  const val = document.getElementById('k4session-input').value.trim();
+  if (!val) return;
+  localStorage.setItem('k4jsessionid', val);
+  document.getElementById('k4session-setup').style.display = 'none';
+  loadK4Issues();
+}
 
-  // Path 2: Direct SOAP (works if dashboard is opened from K4 domain, or server allows CORS)
+// Try Vercel proxy with session token, fall back to direct SOAP fetch.
+async function k4FetchPub(pubID, pub) {
+  const session = getK4Session();
+
+  // Path 1: Vercel serverless proxy — pass session token if we have one
+  try {
+    const url = session ? `/api/k4proxy?pubID=${pubID}&session=${session}` : `/api/k4proxy?pubID=${pubID}`;
+    const r = await fetch(url);
+    if (r.ok) {
+      const txt = await r.text();
+      // Detect session-expired fault → clear stored session and re-prompt
+      if (txt.includes('errorCode>51') || txt.includes('session expired')) {
+        if (session) localStorage.removeItem('k4jsessionid');
+        throw new Error('K4_SESSION_EXPIRED');
+      }
+      if (txt.includes('Fault')) throw new Error(txt.match(/<faultstring[^>]*>([^<]+)/)?.[1] || 'SOAP fault');
+      return k4ParseXml(txt, pub);
+    }
+    // 503 = no session configured
+    if (r.status === 503) throw new Error('K4_SESSION_MISSING');
+  } catch(e) {
+    if (e.message === 'K4_SESSION_EXPIRED' || e.message === 'K4_SESSION_MISSING') throw e;
+    // network error or proxy unavailable — fall through
+  }
+
+  // Path 2: Direct SOAP (works when opened from the K4 admin domain)
   const creds = btoa('jordan jones:Minnesota58!');
   const r = await fetch(K4_EP, {
     method:'POST', credentials:'include',
@@ -709,8 +757,14 @@ async function loadK4Issues() {
     renderK4Live();
   } catch(e) {
     document.getElementById('k4live-status').textContent='Error';
-    err.style.display=''; err.textContent=e.message||String(e);
-    if(String(e).includes('fetch')) err.textContent+=' — deploy to Vercel for automatic access, or open from the K4 admin domain.';
+    const msg = e.message || String(e);
+    if (msg === 'K4_SESSION_EXPIRED' || msg === 'K4_SESSION_MISSING') {
+      err.style.display=''; err.textContent='K4 session expired or missing.';
+      showK4SessionSetup();
+    } else {
+      err.style.display=''; err.textContent=msg;
+      if(msg.includes('fetch')) err.textContent+=' — open from K4 admin domain, or set up session below.';
+    }
   } finally { btn.disabled=false; spin.style.display='none'; }
 }
 
