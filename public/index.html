@@ -479,6 +479,8 @@ function buildLiveTab(){ loadLiveData(); }
 async function loadLiveData(){
   const aToken=document.getElementById('asana-token-input').value.trim();
   const kToken=document.getElementById('kanban-token-input').value.trim();
+  if(aToken) localStorage.setItem('k4dash_asana_token', aToken);
+  if(kToken) localStorage.setItem('k4dash_kanban_token', kToken);
   if(!aToken){showErr('Asana token required.');return;}
   const btn=document.getElementById('load-live-btn');
   btn.disabled=true;btn.textContent='Loading…';
@@ -817,8 +819,20 @@ document.getElementById('gen-lbl').textContent='K4 data: '+D.date_range.from+' �
 document.getElementById('inprog-badge').textContent=D.checkout.length;
 document.getElementById('bot-badge').textContent=D.bottlenecks.filter(b=>b.net_pending>0).length;
 buildProducts();
-// Auto-load live Asana data on startup so Products tab shows Asana% immediately
-loadLiveData();
+
+// ── Token persistence: restore saved tokens on page load ──────────────────────────────────────────────────────────
+(function(){
+  // Pre-seed Kanban token on first visit so it works without manual paste
+  if(!localStorage.getItem('k4dash_kanban_token')){
+    localStorage.setItem('k4dash_kanban_token','NAPVPAC7YLJJVS8F');
+  }
+  const at=localStorage.getItem('k4dash_asana_token')||'';
+  const kt=localStorage.getItem('k4dash_kanban_token')||'';
+  if(at) document.getElementById('asana-token-input').value=at;
+  if(kt) document.getElementById('kanban-token-input').value=kt;
+  // Auto-load live data if Asana token is already saved
+  if(at) loadLiveData();
+})();
 </script>
 </body>
 </html>
