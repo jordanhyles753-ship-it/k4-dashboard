@@ -824,10 +824,10 @@ buildProducts();
 (function(){
   // Pre-seed Kanban token on first visit so it works without manual paste
   if(!localStorage.getItem('k4dash_kanban_token')){
-    localStorage.setItem('k4dash_kanban_token','NAPVPAC7YLJJVS8F');
+    localStorage.setItem('k4dash_kanban_token','Q24379ZMV5ZS3LXM');
   }
   const at=localStorage.getItem('k4dash_asana_token')||'';
-  const kt=localStorage.getItem('k4dash_kanban_token')||'';
+  const kt=localStorage.getItem('k4dash_kanban_token')||'Q24379ZMV5ZS3LXM';
   if(at) document.getElementById('asana-token-input').value=at;
   if(kt) document.getElementById('kanban-token-input').value=kt;
   // Auto-load live data if Asana token is already saved

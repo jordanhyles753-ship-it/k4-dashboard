@@ -88,14 +88,14 @@ git add -A && git commit -m "message" && git push
 - ✅ Dashboard live at k4-dashboard.vercel.app
 - ✅ K4 Live tab works — just needs JSESSIONID pasted on first use (or after session expires)
 - ✅ Asana + Kanban tab works — Asana token must be pasted once, then persists via localStorage
-- ✅ Kanban token pre-seeded in localStorage on first visit (`NAPVPAC7YLJJVS8F`) — no manual paste needed
+- ✅ Kanban token pre-seeded in localStorage on first visit (`Q24379ZMV5ZS3LXM`) — no manual paste needed
 - ✅ Both tokens auto-saved to localStorage on use and restored on page load
 - ✅ Page auto-loads live data on open if Asana token is already saved
 - ⏳ Schedule tab depends on Asana data being loaded first (works once Asana loads)
 
 ## Token quick reference
-- Kanban API token: `NAPVPAC7YLJJVS8F` (Bearer auth, kanban.abeka.com)
-- Kanban Bearer header: `Authorization: Bearer NAPVPAC7YLJJVS8F`
+- Kanban API token: `Q24379ZMV5ZS3LXM` (Bearer auth, kanban.abeka.com)
+- Kanban Bearer header: `Authorization: Bearer Q24379ZMV5ZS3LXM`
 - Asana token: paste from Asana → My Profile → Apps → Personal Access Tokens (saved in localStorage after first use)
 - K4 JSESSIONID: Chrome DevTools → Application → Cookies → accelerated-abeka-v16-k4.fluxcloud.us
 
